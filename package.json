@@ -1,6 +1,6 @@
 {
-  "name": "n8n-nodes-<...>",
-  "version": "0.1.0",
+  "name": "n8n-nodes-aws-s3-custom",
+  "version": "0.0.1",
   "description": "",
   "keywords": [
     "n8n-community-node-package"
@@ -8,12 +8,12 @@
   "license": "MIT",
   "homepage": "",
   "author": {
-    "name": "",
-    "email": ""
+    "name": "Roney Dsilva",
+    "email": "roney.dsilva@cdmx.in"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/<...>/n8n-nodes-<...>.git"
+    "url": "https://github.com/cdmx1/n8n-nodes-aws-s3-custom.git"
   },
   "main": "index.js",
   "scripts": {
@@ -29,13 +29,9 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/ExampleCredentialsApi.credentials.js",
-      "dist/credentials/HttpBinApi.credentials.js"
-    ],
+    "credentials": [],
     "nodes": [
-      "dist/nodes/ExampleNode/ExampleNode.node.js",
-      "dist/nodes/HttpBin/HttpBin.node.js"
+      "dist/nodes/AwsS3Custom/AwsS3Custom.node.js"
     ]
   },
   "devDependencies": {
