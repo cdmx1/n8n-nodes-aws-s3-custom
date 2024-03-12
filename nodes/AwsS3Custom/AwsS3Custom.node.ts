@@ -1,12 +1,12 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-const crypto_1 = require("crypto");
-const change_case_1 = require("change-case");
-const xml2js_1 = require("xml2js");
-const n8n_workflow_1 = require("n8n-workflow");
-const BucketDescription_1 = require("./BucketDescription");
-const FolderDescription_1 = require("./FolderDescription");
-const FileDescription_1 = require("./FileDescription");
-const GenericFunctions_1 = require("./GenericFunctions");
+const crypto_custom = require("crypto");
+const change_case_custom = require("change-case");
+const xml2js_custom = require("xml2js");
+const n8n_workflow_custom = require("n8n-workflow");
+const BucketDescription_custom = require("./BucketDescription");
+const FolderDescription_custom = require("./FolderDescription");
+const FileDescription_custom = require("./FileDescription");
+const GenericFunctions_custom = require("./GenericFunctions");
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
 interface ObjectWithKey {
 	Key: any;
@@ -79,12 +79,12 @@ export class AwsS3Custom implements INodeType {
                 ],
                 default: 'file',
             },
-						...BucketDescription_1.bucketOperations,
-						...BucketDescription_1.bucketFields,
-						...FolderDescription_1.folderOperations,
-						...FolderDescription_1.folderFields,
-						...FileDescription_1.fileOperations,
-						...FileDescription_1.fileFields,
+						...BucketDescription_custom.bucketOperations,
+						...BucketDescription_custom.bucketFields,
+						...FolderDescription_custom.folderOperations,
+						...FolderDescription_custom.folderFields,
+						...FileDescription_custom.fileOperations,
+						...FileDescription_custom.fileFields,
         ],
     };
     execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -116,7 +116,7 @@ export class AwsS3Custom implements INodeType {
                             const additionalFields: any = this.getNodeParameter('additionalFields', i);
                             const headers: Record<string, string> = {};
                             if (additionalFields.acl) {
-                                headers['x-amz-acl'] = (change_case_1.paramCase)(additionalFields.acl) as string;
+                                headers['x-amz-acl'] = (change_case_custom.paramCase)(additionalFields.acl) as string;
                             }
                             if (additionalFields.bucketObjectLockEnabled) {
                                 headers['x-amz-bucket-object-lock-enabled'] = additionalFields.bucketObjectLockEnabled as string;
@@ -140,11 +140,11 @@ export class AwsS3Custom implements INodeType {
                             let data: string = '';
                             if (region !== 'us-east-1') {
                                 body.CreateBucketConfiguration.LocationConstraint = [region];
-                                const builder = new xml2js_1.Builder();
+                                const builder = new xml2js_custom.Builder();
                                 data = builder.buildObject(body);
                             }
 
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, `${name}.s3`, 'PUT', '', data, qs, headers);
+                            responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, `${name}.s3`, 'PUT', '', data, qs, headers);
 
                             const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray({ success: true }), { itemData: { item: i } });
                             returnData.push(...executionData);
@@ -166,13 +166,13 @@ export class AwsS3Custom implements INodeType {
 																	path = `${basePath}/${additionalFields.parentFolderKey}/${folderName}/`;
 															}
 															if (additionalFields.storageClass) {
-																	headers['x-amz-storage-class'] = (change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
+																	headers['x-amz-storage-class'] = (change_case_custom.snakeCase)(additionalFields.storageClass).toUpperCase();
 															}
-															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+															responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
 																	location: '',
 															});
 															const region = responseData.LocationConstraint._;
-															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', path, '', qs, headers, {}, region);
+															responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'PUT', path, '', qs, headers, {}, region);
 															const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray({ success: true }), { itemData: { item: i } });
 															returnData.push(...executionData);
                         }
@@ -181,13 +181,13 @@ export class AwsS3Custom implements INodeType {
 															const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
 															const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
 															const folderKey = this.getNodeParameter('folderKey', i);
-															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+															responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
 																	location: '',
 															});
 															const region = responseData.LocationConstraint._;
-															responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', { 'list-type': 2, prefix: folderKey }, {}, {}, region);
+															responseData = await GenericFunctions_custom.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', { 'list-type': 2, prefix: folderKey }, {}, {}, region);
 															if (responseData.length === 0) {
-																	responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'DELETE', `${basePath}/${folderKey}`, '', qs, {}, {}, region);
+																	responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'DELETE', `${basePath}/${folderKey}`, '', qs, {}, {}, region);
 																	responseData = { deleted: [{ Key: folderKey }] };
 															}
 															else {
@@ -205,11 +205,11 @@ export class AwsS3Custom implements INodeType {
 																				Key: childObject.Key,
 																		});
 																	}
-																	const builder = new xml2js_1.Builder();
+																	const builder = new xml2js_custom.Builder();
 																	const data = builder.buildObject(body);
-																	headers['Content-MD5'] = (crypto_1.createHash)('md5').update(data).digest('base64');
+																	headers['Content-MD5'] = (crypto_custom.createHash)('md5').update(data).digest('base64');
 																	headers['Content-Type'] = 'application/xml';
-																	responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${basePath}/`, data, { delete: '' }, headers, {}, region);
+																	responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'POST', `${basePath}/`, data, { delete: '' }, headers, {}, region);
 																	responseData = { deleted: responseData.DeleteResult.Deleted };
 															}
 															const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(responseData), { itemData: { item: i } });
@@ -228,16 +228,16 @@ export class AwsS3Custom implements INodeType {
 																	qs['fetch-owner'] = options.fetchOwner;
 															}
 															qs['list-type'] = 2;
-															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+															responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
 																	location: '',
 															});
 															const region = responseData.LocationConstraint._;
 															if (returnAll) {
-																	responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
+																	responseData = await GenericFunctions_custom.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
 															}
 															else {
 																	qs.limit = this.getNodeParameter('limit', 0);
-																	responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
+																	responseData = await GenericFunctions_custom.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
 															}
 															if (Array.isArray(responseData)) {
 																	responseData = responseData.filter((e) => e.Key.endsWith('/') && e.Size === '0' && e.Key !== options.folderKey);
@@ -260,10 +260,10 @@ export class AwsS3Custom implements INodeType {
                                 headers['x-amz-request-payer'] = 'requester';
                             }
                             if (additionalFields.storageClass) {
-                                headers['x-amz-storage-class'] = (change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
+                                headers['x-amz-storage-class'] = (change_case_custom.snakeCase)(additionalFields.storageClass).toUpperCase();
                             }
                             if (additionalFields.acl) {
-                                headers['x-amz-acl'] = (change_case_1.paramCase)(additionalFields.acl);
+                                headers['x-amz-acl'] = (change_case_custom.paramCase)(additionalFields.acl);
                             }
                             if (additionalFields.grantFullControl) {
                                 headers['x-amz-grant-full-control'] = '';
@@ -326,11 +326,11 @@ export class AwsS3Custom implements INodeType {
                             const destination = `${basePath}/${destinationParts
                                 .slice(2, destinationParts.length)
                                 .join('/')}`;
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+                            responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
                                 location: '',
                             });
                             const region = responseData.LocationConstraint._;
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', destination, '', qs, headers, {}, region);
+                            responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'PUT', destination, '', qs, headers, {}, region);
                             const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(responseData.CopyObjectResult), { itemData: { item: i } });
                             returnData.push(...executionData);
                         }
@@ -342,13 +342,13 @@ export class AwsS3Custom implements INodeType {
                             const fileKey = this.getNodeParameter('fileKey', i) as string;
                             const fileName = fileKey.split('/')[fileKey.split('/').length - 1];
                             if (fileKey.substring(fileKey.length - 1) === '/') {
-                                throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'Downloading a whole directory is not yet supported, please provide a file key');
+                                throw new n8n_workflow_custom.NodeOperationError(this.getNode(), 'Downloading a whole directory is not yet supported, please provide a file key');
                             }
-                            let region = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+                            let region = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
                                 location: '',
                             });
                             region = region.LocationConstraint._;
-                            const response = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', `${basePath}/${fileKey}`, '', qs, {}, { encoding: null, resolveWithFullResponse: true }, region);
+                            const response = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', `${basePath}/${fileKey}`, '', qs, {}, { encoding: null, resolveWithFullResponse: true }, region);
                             let mimeType;
                             if (response.headers['content-type']) {
                                 mimeType = response.headers['content-type'];
@@ -376,11 +376,11 @@ export class AwsS3Custom implements INodeType {
                             if (options.versionId) {
                                 qs.versionId = options.versionId;
                             }
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+                            responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
                                 location: '',
                             });
                             const region = responseData.LocationConstraint._;
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'DELETE', `${basePath}/${fileKey}`, '', qs, {}, {}, region);
+                            responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'DELETE', `${basePath}/${fileKey}`, '', qs, {}, {}, region);
                             const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray({ success: true }), { itemData: { item: i } });
                             returnData.push(...executionData);
                         }
@@ -398,16 +398,16 @@ export class AwsS3Custom implements INodeType {
                             }
                             qs.delimiter = '/';
                             qs['list-type'] = 2;
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+                            responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
                                 location: '',
                             });
                             const region = responseData.LocationConstraint._;
                             if (returnAll) {
-                                responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
+                                responseData = await GenericFunctions_custom.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
                             }
                             else {
                                 qs.limit = this.getNodeParameter('limit', 0);
-                                responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
+                                responseData = await GenericFunctions_custom.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
                                 responseData = responseData.splice(0, qs.limit);
                             }
                             if (Array.isArray(responseData)) {
@@ -438,10 +438,10 @@ export class AwsS3Custom implements INodeType {
                                 path = `${basePath}/${additionalFields.parentFolderKey}/${fileName}`;
                             }
                             if (additionalFields.storageClass) {
-                                multipartHeaders['x-amz-storage-class'] = (change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
+                                multipartHeaders['x-amz-storage-class'] = (change_case_custom.snakeCase)(additionalFields.storageClass).toUpperCase();
                             }
                             if (additionalFields.acl) {
-                                multipartHeaders['x-amz-acl'] = (change_case_1.paramCase)(additionalFields.acl);
+                                multipartHeaders['x-amz-acl'] = (change_case_custom.paramCase)(additionalFields.acl);
                             }
                             if (additionalFields.grantFullControl) {
                                 multipartHeaders['x-amz-grant-full-control'] = '';
@@ -497,7 +497,7 @@ export class AwsS3Custom implements INodeType {
                                 });
                                 multipartHeaders['x-amz-tagging'] = tags.join('&');
                             }
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+                            responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
                                 location: '',
                             });
                             const region = responseData.LocationConstraint._;
@@ -508,32 +508,32 @@ export class AwsS3Custom implements INodeType {
                                 multipartHeaders['Content-Type'] = binaryPropertyData.mimeType;
                                 if (binaryPropertyData.id) {
                                     uploadData = await this.helpers.getBinaryStream(binaryPropertyData.id, UPLOAD_CHUNK_SIZE);
-                                    const createMultiPartUpload: ReturnType<typeof GenericFunctions_1.awsApiRequestREST.call> = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${path}?uploads`, body, qs, { ...neededHeaders, ...multipartHeaders }, {}, region);
+                                    const createMultiPartUpload: ReturnType<typeof GenericFunctions_custom.awsApiRequestREST.call> = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'POST', `${path}?uploads`, body, qs, { ...neededHeaders, ...multipartHeaders }, {}, region);
                                     const uploadId = createMultiPartUpload.InitiateMultipartUploadResult.UploadId;
                                     let part = 1;
                                     for await (const chunk of uploadData) {
                                         const chunkBuffer = await this.helpers.binaryToBuffer(chunk);
                                         const listHeaders = {
                                             'Content-Length': chunk.length,
-                                            'Content-MD5': (crypto_1.createHash)('MD5').update(chunkBuffer).digest('base64'),
+                                            'Content-MD5': (crypto_custom.createHash)('MD5').update(chunkBuffer).digest('base64'),
                                             ...neededHeaders,
                                         };
                                         try {
-                                            await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', `${path}?partNumber=${part}&uploadId=${uploadId}`, chunk, qs, listHeaders, {}, region);
+                                            await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'PUT', `${path}?partNumber=${part}&uploadId=${uploadId}`, chunk, qs, listHeaders, {}, region);
                                             part++;
                                         }
                                         catch (error) {
                                             try {
-                                                await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'DELETE', `${path}?uploadId=${uploadId}`);
+                                                await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'DELETE', `${path}?uploadId=${uploadId}`);
                                             }
                                             catch (err) {
-                                                throw new n8n_workflow_1.NodeOperationError(this.getNode(), err);
+                                                throw new n8n_workflow_custom.NodeOperationError(this.getNode(), err);
                                             }
                                             if (((_a = error.response) === null || _a === void 0 ? void 0 : _a.status) !== 308)
                                                 throw error;
                                         }
                                     }
-                                    const listParts = (await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', `${path}?max-parts=${900}&part-number-marker=0&uploadId=${uploadId}`, '', qs, { ...neededHeaders }, {}, region));
+                                    const listParts = (await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'GET', `${path}?max-parts=${900}&part-number-marker=0&uploadId=${uploadId}`, '', qs, { ...neededHeaders }, {}, region));
                                     if (!Array.isArray(listParts.ListPartsResult.Part)) {
                                         body = {
                                             CompleteMultipartUpload: {
@@ -562,11 +562,11 @@ export class AwsS3Custom implements INodeType {
                                             },
                                         };
                                     }
-                                    const builder = new xml2js_1.Builder();
+                                    const builder = new xml2js_custom.Builder();
                                     const data = builder.buildObject(body);
-                                    const completeUpload = (await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${path}?uploadId=${uploadId}`, data, qs, {
+                                    const completeUpload = (await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'POST', `${path}?uploadId=${uploadId}`, data, qs, {
                                         ...neededHeaders,
-                                        'Content-MD5': (crypto_1.createHash)('md5').update(data).digest('base64'),
+                                        'Content-MD5': (crypto_custom.createHash)('md5').update(data).digest('base64'),
                                         'Content-Type': 'application/xml',
                                     }, {}, region));
                                     responseData = {
@@ -578,8 +578,8 @@ export class AwsS3Custom implements INodeType {
                                     body = binaryDataBuffer;
                                     headers = { ...neededHeaders, ...multipartHeaders };
                                     headers['Content-Type'] = binaryPropertyData.mimeType;
-                                    headers['Content-MD5'] = (crypto_1.createHash)('md5').update(body).digest('base64');
-                                    responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', path, body, qs, headers, {}, region);
+                                    headers['Content-MD5'] = (crypto_custom.createHash)('md5').update(body).digest('base64');
+                                    responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'PUT', path, body, qs, headers, {}, region);
                                 }
                                 const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(responseData !== null && responseData !== void 0 ? responseData : { success: true }), { itemData: { item: i } });
                                 returnData.push(...executionData);
@@ -589,8 +589,8 @@ export class AwsS3Custom implements INodeType {
                                 body = Buffer.from(fileContent, 'utf8');
                                 headers = { ...neededHeaders, ...multipartHeaders };
                                 headers['Content-Type'] = 'text/html';
-                                headers['Content-MD5'] = (crypto_1.createHash)('md5').update(fileContent).digest('base64');
-                                responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', path, body, qs, { ...headers }, {}, region);
+                                headers['Content-MD5'] = (crypto_custom.createHash)('md5').update(fileContent).digest('base64');
+                                responseData = await GenericFunctions_custom.awsApiRequestREST.call(this, servicePath, 'PUT', path, body, qs, { ...headers }, {}, region);
                                 const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray({ success: true }), { itemData: { item: i } });
                                 returnData.push(...executionData);
                             }
