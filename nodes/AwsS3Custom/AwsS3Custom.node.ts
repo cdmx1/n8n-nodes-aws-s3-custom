@@ -3,11 +3,120 @@ const crypto_custom = require("crypto");
 const change_case_custom = require("change-case");
 const xml2js_custom = require("xml2js");
 const n8n_workflow_custom = require("n8n-workflow");
-// const BucketDescription_custom = require("./BucketDescription.js");
-// const FolderDescription_custom = require("./FolderDescription.js");
-// const FileDescription_custom = require("./FileDescription.js");
 const GenericFunctions_custom = require("./GenericFunctions.js");
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
+exports.regions = [
+	{
+			name: 'af-south-1',
+			displayName: 'Africa',
+			location: 'Cape Town',
+	},
+	{
+			name: 'ap-east-1',
+			displayName: 'Asia Pacific',
+			location: 'Hong Kong',
+	},
+	{
+			name: 'ap-south-1',
+			displayName: 'Asia Pacific',
+			location: 'Mumbai',
+	},
+	{
+			name: 'ap-southeast-1',
+			displayName: 'Asia Pacific',
+			location: 'Singapore',
+	},
+	{
+			name: 'ap-southeast-2',
+			displayName: 'Asia Pacific',
+			location: 'Sydney',
+	},
+	{
+			name: 'ap-southeast-3',
+			displayName: 'Asia Pacific',
+			location: 'Jakarta',
+	},
+	{
+			name: 'ap-northeast-1',
+			displayName: 'Asia Pacific',
+			location: 'Tokyo',
+	},
+	{
+			name: 'ap-northeast-2',
+			displayName: 'Asia Pacific',
+			location: 'Seoul',
+	},
+	{
+			name: 'ap-northeast-3',
+			displayName: 'Asia Pacific',
+			location: 'Osaka',
+	},
+	{
+			name: 'ca-central-1',
+			displayName: 'Canada',
+			location: 'Central',
+	},
+	{
+			name: 'eu-central-1',
+			displayName: 'Europe',
+			location: 'Frankfurt',
+	},
+	{
+			name: 'eu-north-1',
+			displayName: 'Europe',
+			location: 'Stockholm',
+	},
+	{
+			name: 'eu-south-1',
+			displayName: 'Europe',
+			location: 'Milan',
+	},
+	{
+			name: 'eu-west-1',
+			displayName: 'Europe',
+			location: 'Ireland',
+	},
+	{
+			name: 'eu-west-2',
+			displayName: 'Europe',
+			location: 'London',
+	},
+	{
+			name: 'eu-west-3',
+			displayName: 'Europe',
+			location: 'Paris',
+	},
+	{
+			name: 'me-south-1',
+			displayName: 'Middle East',
+			location: 'Bahrain',
+	},
+	{
+			name: 'sa-east-1',
+			displayName: 'South America',
+			location: 'São Paulo',
+	},
+	{
+			name: 'us-east-1',
+			displayName: 'US East',
+			location: 'N. Virginia',
+	},
+	{
+			name: 'us-east-2',
+			displayName: 'US East',
+			location: 'Ohio',
+	},
+	{
+			name: 'us-west-1',
+			displayName: 'US West',
+			location: 'N. California',
+	},
+	{
+			name: 'us-west-2',
+			displayName: 'US West',
+			location: 'Oregon',
+	},
+];
 interface ObjectWithKey {
 	Key: any;
 }
@@ -34,13 +143,16 @@ export class AwsS3Custom implements INodeType {
         inputs: ['main'],
         outputs: ['main'],
         properties: [
-            {
-                displayName: 'Region',
-                name: 'region',
-                type: 'string',
-                required: true,
-                default: ''
-            },
+							{
+								displayName: 'Region',
+								name: 'region',
+								type: 'options',
+								options: exports.regions.map((r: any) => ({
+										name: `${r.displayName} (${r.location}) - ${r.name}`,
+										value: r.name,
+								})),
+								default: 'us-east-1',
+						},
             {
                 displayName: 'Access Key ID',
                 name: 'accessKeyId',
