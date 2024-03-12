@@ -543,7 +543,7 @@ export class AwsS3Custom implements INodeType {
                                 },
                             },
                             default: false,
-                            description: 'Return all results or only up to a given limit',
+                            description: 'Whether to return all results or only up to a given limit',
                         },
                         {
                             displayName: 'Limit',
