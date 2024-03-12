@@ -1,17 +1,24 @@
-import {
-	IExecuteFunctions,
-	INodeExecutionData,
-	INodeType,
-	INodeTypeDescription,
-} from 'n8n-workflow';
+import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
 const crypto_1 = require("crypto");
 const change_case_1 = require("change-case");
 const xml2js_1 = require("xml2js");
-import { bucketFields, bucketOperations } from './BucketDescription';
-import { folderFields, folderOperations } from './FolderDescription';
-import { fileFields, fileOperations } from './FileDescription';
-import { GenericFunctions_1 } from './GenericFunctions';
-
+const n8n_workflow_1 = require("n8n-workflow");
+const BucketDescription_1 = require("./BucketDescription");
+const FolderDescription_1 = require("./FolderDescription");
+const FileDescription_1 = require("./FileDescription");
+const GenericFunctions_1 = require("./GenericFunctions_1");
+const UPLOAD_CHUNK_SIZE = 5120 * 1024;
+interface ObjectWithKey {
+	Key: any;
+}
+interface QueryString {
+	prefix?: any;
+	'fetch-owner'? : any;
+	'list-type'? : any;
+	'limit'? : any;
+	'versionId'? : any;
+	'delimiter'? : any;
+}
 export class AwsS3Custom implements INodeType {
     description: INodeTypeDescription = {
         displayName: 'AWS S3 Custom',
@@ -46,7 +53,10 @@ export class AwsS3Custom implements INodeType {
                 name: 'secretAccessKey',
                 type: 'string',
                 required: true,
-                default: ''
+                default: '',
+								typeOptions: {
+									password: true
+							}
             },
             {
                 displayName: 'Resource',
@@ -69,19 +79,20 @@ export class AwsS3Custom implements INodeType {
                 ],
                 default: 'file',
             },
-            ...bucketOperations,
-            ...bucketFields,
-            ...folderOperations,
-            ...folderFields,
-            ...fileOperations,
-            ...fileFields,
+						...BucketDescription_1.bucketOperations,
+						...BucketDescription_1.bucketFields,
+						...FolderDescription_1.folderOperations,
+						...FolderDescription_1.folderFields,
+						...FileDescription_1.fileOperations,
+						...FileDescription_1.fileFields,
         ],
     };
     execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+			return (async () => {
+					try {
             var _a;
             const items = this.getInputData();
             const returnData = [];
-            const qs = {};
             let responseData;
             const region = this.getNodeParameter('region', 0);
             const accessKeyId = this.getNodeParameter('accessKeyId', 0);
@@ -96,13 +107,13 @@ export class AwsS3Custom implements INodeType {
             const resource = this.getNodeParameter('resource', 0);
             const operation = this.getNodeParameter('operation', 0);
             for (let i = 0; i < items.length; i++) {
-                let headers = {};
+							  let headers: { [key: string]: any } = {};
+								let qs: QueryString = {};
                 try {
                     if (resource === 'bucket') {
                         if (operation === 'create') {
                             const name: string = this.getNodeParameter('name', i) as string;
-                            const additionalFields: any = this.getNodeParameter('additionalFields', i); // Define the type according to your needs
-                    
+                            const additionalFields: any = this.getNodeParameter('additionalFields', i);
                             const headers: Record<string, string> = {};
                             if (additionalFields.acl) {
                                 headers['x-amz-acl'] = (0, change_case_1.paramCase)(additionalFields.acl) as string;
@@ -117,7 +128,7 @@ export class AwsS3Custom implements INodeType {
                             if (additionalFields.region) {
                                 region = additionalFields.region as string;
                             }
-                    
+
                             const body: Record<string, any> = {
                                 CreateBucketConfiguration: {
                                     $: {
@@ -125,16 +136,16 @@ export class AwsS3Custom implements INodeType {
                                     },
                                 },
                             };
-                    
+
                             let data: string = '';
                             if (region !== 'us-east-1') {
                                 body.CreateBucketConfiguration.LocationConstraint = [region];
                                 const builder = new xml2js_1.Builder();
                                 data = builder.buildObject(body);
                             }
-                    
+
                             responseData = await GenericFunctions_1.awsApiRequestREST.call(this, `${name}.s3`, 'PUT', '', data, qs, headers);
-                    
+
                             const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray({ success: true }), { itemData: { item: i } });
                             returnData.push(...executionData);
                         }
@@ -142,105 +153,107 @@ export class AwsS3Custom implements INodeType {
                     }
                     if (resource === 'folder') {
                         if (operation === 'create') {
-                            const bucketName = this.getNodeParameter('bucketName', i);
-                            const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
-                            const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
-                            const folderName = this.getNodeParameter('folderName', i);
-                            const additionalFields = this.getNodeParameter('additionalFields', i);
-                            let path = `${basePath}/${folderName}/`;
-                            if (additionalFields.requesterPays) {
+                            const bucketName = this.getNodeParameter('bucketName', i) as string;
+															const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
+															const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
+															const folderName = this.getNodeParameter('folderName', i);
+															const additionalFields = this.getNodeParameter('additionalFields', i);
+															let path = `${basePath}/${folderName}/`;
+															if (additionalFields.requesterPays) {
                                 headers['x-amz-request-payer'] = 'requester';
-                            }
-                            if (additionalFields.parentFolderKey) {
-                                path = `${basePath}/${additionalFields.parentFolderKey}/${folderName}/`;
-                            }
-                            if (additionalFields.storageClass) {
-                                headers['x-amz-storage-class'] = (0, change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
-                            }
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
-                                location: '',
-                            });
-                            const region = responseData.LocationConstraint._;
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', path, '', qs, headers, {}, region);
-                            const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray({ success: true }), { itemData: { item: i } });
-                            returnData.push(...executionData);
+															}
+															if (additionalFields.parentFolderKey) {
+																	path = `${basePath}/${additionalFields.parentFolderKey}/${folderName}/`;
+															}
+															if (additionalFields.storageClass) {
+																	headers['x-amz-storage-class'] = (0, change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
+															}
+															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+																	location: '',
+															});
+															const region = responseData.LocationConstraint._;
+															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', path, '', qs, headers, {}, region);
+															const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray({ success: true }), { itemData: { item: i } });
+															returnData.push(...executionData);
                         }
                         if (operation === 'delete') {
-                            const bucketName = this.getNodeParameter('bucketName', i);
-                            const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
-                            const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
-                            const folderKey = this.getNodeParameter('folderKey', i);
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
-                                location: '',
-                            });
-                            const region = responseData.LocationConstraint._;
-                            responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', { 'list-type': 2, prefix: folderKey }, {}, {}, region);
-                            if (responseData.length === 0) {
-                                responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'DELETE', `${basePath}/${folderKey}`, '', qs, {}, {}, region);
-                                responseData = { deleted: [{ Key: folderKey }] };
-                            }
-                            else {
-                                const body = {
-                                    Delete: {
-                                        $: {
-                                            xmlns: 'http://s3.amazonaws.com/doc/2006-03-01/',
-                                        },
-                                        Object: [],
-                                    },
-                                };
-                                for (const childObject of responseData) {
-                                    body.Delete.Object.push({
-                                        Key: childObject.Key,
-                                    });
-                                }
-                                const builder = new xml2js_1.Builder();
-                                const data = builder.buildObject(body);
-                                headers['Content-MD5'] = (0, crypto_1.createHash)('md5').update(data).digest('base64');
-                                headers['Content-Type'] = 'application/xml';
-                                responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${basePath}/`, data, { delete: '' }, headers, {}, region);
-                                responseData = { deleted: responseData.DeleteResult.Deleted };
-                            }
-                            const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(responseData), { itemData: { item: i } });
-                            returnData.push(...executionData);
+                            const bucketName = this.getNodeParameter('bucketName', i) as string;
+															const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
+															const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
+															const folderKey = this.getNodeParameter('folderKey', i);
+															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+																	location: '',
+															});
+															const region = responseData.LocationConstraint._;
+															responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', { 'list-type': 2, prefix: folderKey }, {}, {}, region);
+															if (responseData.length === 0) {
+																	responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'DELETE', `${basePath}/${folderKey}`, '', qs, {}, {}, region);
+																	responseData = { deleted: [{ Key: folderKey }] };
+															}
+															else {
+																	const body = {
+																			Delete: {
+																					$: {
+																							xmlns: 'http://s3.amazonaws.com/doc/2006-03-01/',
+																					},
+																					Object: [],
+																			},
+																	};
+																	const objectsArray: ObjectWithKey[] = body.Delete.Object;
+																	for (const childObject of responseData) {
+																		objectsArray.push({
+																				Key: childObject.Key,
+																		});
+																	}
+																	const builder = new xml2js_1.Builder();
+																	const data = builder.buildObject(body);
+																	headers['Content-MD5'] = (0, crypto_1.createHash)('md5').update(data).digest('base64');
+																	headers['Content-Type'] = 'application/xml';
+																	responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${basePath}/`, data, { delete: '' }, headers, {}, region);
+																	responseData = { deleted: responseData.DeleteResult.Deleted };
+															}
+															const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(responseData), { itemData: { item: i } });
+															returnData.push(...executionData);
                         }
                         if (operation === 'getAll') {
-                            const bucketName = this.getNodeParameter('bucketName', i);
-                            const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
-                            const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
-                            const returnAll = this.getNodeParameter('returnAll', 0);
-                            const options = this.getNodeParameter('options', 0);
-                            if (options.folderKey) {
-                                qs.prefix = options.folderKey;
-                            }
-                            if (options.fetchOwner) {
-                                qs['fetch-owner'] = options.fetchOwner;
-                            }
-                            qs['list-type'] = 2;
-                            responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
-                                location: '',
-                            });
-                            const region = responseData.LocationConstraint._;
-                            if (returnAll) {
-                                responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
-                            }
-                            else {
-                                qs.limit = this.getNodeParameter('limit', 0);
-                                responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
-                            }
-                            if (Array.isArray(responseData)) {
-                                responseData = responseData.filter((e) => e.Key.endsWith('/') && e.Size === '0' && e.Key !== options.folderKey);
-                                if (qs.limit) {
-                                    responseData = responseData.splice(0, qs.limit);
-                                }
-                                const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(responseData), { itemData: { item: i } });
-                                returnData.push(...executionData);
-                            }
-                        }
+                            const bucketName = this.getNodeParameter('bucketName', i) as string;
+															const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
+															const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
+															const returnAll = this.getNodeParameter('returnAll', 0);
+															const options = this.getNodeParameter('options', 0);
+															if (options.folderKey) {
+																	qs.prefix = options.folderKey;
+															}
+															if (options.fetchOwner) {
+																	qs['fetch-owner'] = options.fetchOwner;
+															}
+															qs['list-type'] = 2;
+															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
+																	location: '',
+															});
+															const region = responseData.LocationConstraint._;
+															if (returnAll) {
+																	responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
+															}
+															else {
+																	qs.limit = this.getNodeParameter('limit', 0);
+																	responseData = await GenericFunctions_1.awsApiRequestRESTAllItems.call(this, 'ListBucketResult.Contents', servicePath, 'GET', basePath, '', qs, {}, {}, region);
+															}
+															if (Array.isArray(responseData)) {
+																	responseData = responseData.filter((e) => e.Key.endsWith('/') && e.Size === '0' && e.Key !== options.folderKey);
+																	if (qs.limit) {
+																			responseData = responseData.splice(0, qs.limit);
+																	}
+																	const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(responseData), { itemData: { item: i } });
+																	returnData.push(...executionData);
+															}
+													}
+
                     }
                     if (resource === 'file') {
                         if (operation === 'copy') {
                             const sourcePath = this.getNodeParameter('sourcePath', i);
-                            const destinationPath = this.getNodeParameter('destinationPath', i);
+                            const destinationPath = this.getNodeParameter('destinationPath', i) as string;
                             const additionalFields = this.getNodeParameter('additionalFields', i);
                             headers['x-amz-copy-source'] = sourcePath;
                             if (additionalFields.requesterPays) {
@@ -269,7 +282,7 @@ export class AwsS3Custom implements INodeType {
                                     ? 'ON'
                                     : 'OFF';
                             }
-                            if (additionalFields.lockMode) {
+                            if (additionalFields.lockMode && typeof additionalFields.lockMode === 'string') {
                                 headers['x-amz-object-lock-mode'] = additionalFields.lockMode.toUpperCase();
                             }
                             if (additionalFields.lockRetainUntilDate) {
@@ -300,10 +313,10 @@ export class AwsS3Custom implements INodeType {
                                 headers['x-amz-server-side-encryption-customer-key-MD5'] =
                                     additionalFields.serversideEncryptionCustomerKeyMD5;
                             }
-                            if (additionalFields.taggingDirective) {
+                            if (additionalFields.taggingDirective && typeof additionalFields.taggingDirective === 'string') {
                                 headers['x-amz-tagging-directive'] = additionalFields.taggingDirective.toUpperCase();
                             }
-                            if (additionalFields.metadataDirective) {
+                            if (additionalFields.metadataDirective && typeof additionalFields.metadataDirective === 'string') {
                                 headers['x-amz-metadata-directive'] = additionalFields.metadataDirective.toUpperCase();
                             }
                             const destinationParts = destinationPath.split('/');
@@ -322,10 +335,11 @@ export class AwsS3Custom implements INodeType {
                             returnData.push(...executionData);
                         }
                         if (operation === 'download') {
-                            const bucketName = this.getNodeParameter('bucketName', i);
-                            const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
+                            const bucketName = this.getNodeParameter('bucketName', i) as string;
+														let items: any[] = [];
+														const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
                             const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
-                            const fileKey = this.getNodeParameter('fileKey', i);
+                            const fileKey = this.getNodeParameter('fileKey', i) as string;
                             const fileName = fileKey.split('/')[fileKey.split('/').length - 1];
                             if (fileKey.substring(fileKey.length - 1) === '/') {
                                 throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'Downloading a whole directory is not yet supported, please provide a file key');
@@ -349,10 +363,12 @@ export class AwsS3Custom implements INodeType {
                             items[i] = newItem;
                             const dataPropertyNameDownload = this.getNodeParameter('binaryPropertyName', i);
                             const data = Buffer.from(response.body, 'utf8');
-                            items[i].binary[dataPropertyNameDownload] = await this.helpers.prepareBinaryData(data, fileName, mimeType);
+														if (items[i]) {
+															items[i].binary[dataPropertyNameDownload] = await this.helpers.prepareBinaryData(data, fileName, mimeType);
+														 }
                         }
                         if (operation === 'delete') {
-                            const bucketName = this.getNodeParameter('bucketName', i);
+                            const bucketName = this.getNodeParameter('bucketName', i) as string;
                             const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
                             const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
                             const fileKey = this.getNodeParameter('fileKey', i);
@@ -369,7 +385,7 @@ export class AwsS3Custom implements INodeType {
                             returnData.push(...executionData);
                         }
                         if (operation === 'getAll') {
-                            const bucketName = this.getNodeParameter('bucketName', i);
+                            const bucketName = this.getNodeParameter('bucketName', i) as string;
                             const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
                             const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
                             const returnAll = this.getNodeParameter('returnAll', 0);
@@ -404,18 +420,17 @@ export class AwsS3Custom implements INodeType {
                             }
                         }
                         if (operation === 'upload') {
-                            const bucketName = this.getNodeParameter('bucketName', i);
+                            const bucketName = this.getNodeParameter('bucketName', i) as string;
                             const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
                             const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
                             const fileName = this.getNodeParameter('fileName', i);
                             const isBinaryData = this.getNodeParameter('binaryData', i);
                             const additionalFields = this.getNodeParameter('additionalFields', i);
-                            const tagsValues = this.getNodeParameter('tagsUi', i)
-                                .tagsValues;
+                            const tagsValues = (this.getNodeParameter('tagsUi', i) as { tagsValues?: any })?.tagsValues;
                             let path = `${basePath}/${fileName}`;
                             let body;
-                            const multipartHeaders = {};
-                            const neededHeaders = {};
+                            const multipartHeaders: { [key: string]: any } = {};
+                            const neededHeaders: { [key: string]: any } = {};
                             if (additionalFields.requesterPays) {
                                 neededHeaders['x-amz-request-payer'] = 'requester';
                             }
@@ -444,7 +459,7 @@ export class AwsS3Custom implements INodeType {
                                 multipartHeaders['x-amz-object-lock-legal-hold'] =
                                     additionalFields.lockLegalHold ? 'ON' : 'OFF';
                             }
-                            if (additionalFields.lockMode) {
+                            if (additionalFields.lockMode && typeof additionalFields.lockMode === 'string') {
                                 multipartHeaders['x-amz-object-lock-mode'] = additionalFields.lockMode.toUpperCase();
                             }
                             if (additionalFields.lockRetainUntilDate) {
@@ -476,8 +491,8 @@ export class AwsS3Custom implements INodeType {
                                     additionalFields.serversideEncryptionCustomerKeyMD5;
                             }
                             if (tagsValues) {
-                                const tags = [];
-                                tagsValues.forEach((o) => {
+                                const tags: string[] = [];
+                                tagsValues.forEach((o: any) => {
                                     tags.push(`${o.key}=${o.value}`);
                                 });
                                 multipartHeaders['x-amz-tagging'] = tags.join('&');
@@ -493,7 +508,7 @@ export class AwsS3Custom implements INodeType {
                                 multipartHeaders['Content-Type'] = binaryPropertyData.mimeType;
                                 if (binaryPropertyData.id) {
                                     uploadData = await this.helpers.getBinaryStream(binaryPropertyData.id, UPLOAD_CHUNK_SIZE);
-                                    const createMultiPartUpload = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${path}?uploads`, body, qs, { ...neededHeaders, ...multipartHeaders }, {}, region);
+                                    const createMultiPartUpload: ReturnType<typeof GenericFunctions_1.awsApiRequestREST.call> = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${path}?uploads`, body, qs, { ...neededHeaders, ...multipartHeaders }, {}, region);
                                     const uploadId = createMultiPartUpload.InitiateMultipartUploadResult.UploadId;
                                     let part = 1;
                                     for await (const chunk of uploadData) {
@@ -538,7 +553,7 @@ export class AwsS3Custom implements INodeType {
                                                 $: {
                                                     xmlns: 'http://s3.amazonaws.com/doc/2006-03-01/',
                                                 },
-                                                Part: listParts.ListPartsResult.Part.map((Part) => {
+                                                Part: listParts.ListPartsResult.Part.map((Part: any) => {
                                                     return {
                                                         ETag: Part.ETag,
                                                         PartNumber: Part.PartNumber,
@@ -570,7 +585,7 @@ export class AwsS3Custom implements INodeType {
                                 returnData.push(...executionData);
                             }
                             else {
-                                const fileContent = this.getNodeParameter('fileContent', i);
+                                const fileContent = this.getNodeParameter('fileContent', i) as any;
                                 body = Buffer.from(fileContent, 'utf8');
                                 headers = { ...neededHeaders, ...multipartHeaders };
                                 headers['Content-Type'] = 'text/html';
@@ -597,6 +612,10 @@ export class AwsS3Custom implements INodeType {
             else {
                 return [returnData];
             }
+					} catch (error) {
+            throw error;
         }
+			})();
+			}
 }
 
