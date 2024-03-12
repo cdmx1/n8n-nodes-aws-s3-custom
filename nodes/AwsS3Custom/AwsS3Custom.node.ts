@@ -5,7 +5,7 @@ const xml2js_custom = require("xml2js");
 const n8n_workflow_custom = require("n8n-workflow");
 const GenericFunctions_custom = require("./GenericFunctions.js");
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
-exports.regions = [
+const regions = [
 	{
 			name: 'af-south-1',
 			displayName: 'Africa',
@@ -147,7 +147,7 @@ export class AwsS3Custom implements INodeType {
 								displayName: 'Region',
 								name: 'region',
 								type: 'options',
-								options: exports.regions.map((r: any) => ({
+								options: regions.map((r: any) => ({
 										name: `${r.displayName} (${r.location}) - ${r.name}`,
 										value: r.name,
 								})),
