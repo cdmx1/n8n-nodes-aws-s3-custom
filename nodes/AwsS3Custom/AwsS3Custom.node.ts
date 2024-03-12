@@ -151,7 +151,7 @@ export class AwsS3Custom implements INodeType {
 										name: `${r.displayName} (${r.location}) - ${r.name}`,
 										value: r.name,
 								})),
-								default: 'us-east-1',
+								default: '',
 						},
             {
                 displayName: 'Access Key ID',
