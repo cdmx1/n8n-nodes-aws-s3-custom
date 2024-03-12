@@ -543,7 +543,7 @@ export class AwsS3Custom implements INodeType {
                                 },
                             },
                             default: false,
-                            description: 'Whether to return all results or only up to a given limit',
+                            description: 'Return all results or only up to a given limit',
                         },
                         {
                             displayName: 'Limit',
@@ -557,10 +557,9 @@ export class AwsS3Custom implements INodeType {
                                 },
                             },
                             typeOptions: {
-                                minValue: 1,
-                                maxValue: 500,
+                                minValue: 1
                             },
-                            default: 100,
+                            default: 50,
                             description: 'Max number of results to return',
                         },
                         {
@@ -581,8 +580,8 @@ export class AwsS3Custom implements INodeType {
                                     name: 'fetchOwner',
                                     type: 'boolean',
                                     default: false,
-                                    description: 'The owner field is not present in listV2 by default, if you want to return owner field with each key in the result then set the fetch owner field to true',
-                                },
+                                    description: 'Whether owner field is not present in listV2 by default, if you want to return owner field with each key in the result then set the fetch owner field to true',
+								                },
                                 {
                                     displayName: 'Folder Key',
                                     name: 'folderKey',
@@ -764,7 +763,7 @@ export class AwsS3Custom implements INodeType {
                                             value: 'compliance',
                                         },
                                     ],
-                                    default: '',
+                                    default: 'governance',
                                     description: 'The Object Lock mode that you want to apply to this object',
                                 },
                                 {
@@ -788,7 +787,7 @@ export class AwsS3Custom implements INodeType {
                                             value: 'replace',
                                         },
                                     ],
-                                    default: '',
+                                    default: 'copy',
                                     description: 'Specifies whether the metadata is copied from the source object or replaced with metadata provided in the request',
                                 },
                                 {
@@ -812,7 +811,7 @@ export class AwsS3Custom implements INodeType {
                                             value: 'aws:kms',
                                         },
                                     ],
-                                    default: '',
+                                    default: 'AES256',
                                     description: 'The server-side encryption algorithm used when storing this object in Amazon S3',
                                 },
                                 {
@@ -897,7 +896,7 @@ export class AwsS3Custom implements INodeType {
                                             value: 'replace',
                                         },
                                     ],
-                                    default: '',
+                                    default: 'copy',
                                     description: 'Specifies whether the metadata is copied from the source object or replaced with metadata provided in the request',
                                 },
                             ],
@@ -1087,7 +1086,7 @@ export class AwsS3Custom implements INodeType {
                                             value: 'compliance',
                                         },
                                     ],
-                                    default: '',
+                                    default: 'governance',
                                     description: 'The Object Lock mode that you want to apply to this object',
                                 },
                                 {
@@ -1125,7 +1124,7 @@ export class AwsS3Custom implements INodeType {
                                             value: 'aws:kms',
                                         },
                                     ],
-                                    default: '',
+                                    default: 'AES256',
                                     description: 'The server-side encryption algorithm used when storing this object in Amazon S3',
                                 },
                                 {
@@ -1360,10 +1359,9 @@ export class AwsS3Custom implements INodeType {
                                 },
                             },
                             typeOptions: {
-                                minValue: 1,
-                                maxValue: 500,
+                                minValue: 1
                             },
-                            default: 100,
+                            default: 50,
                             description: 'Max number of results to return',
                         },
                         {
@@ -1384,7 +1382,7 @@ export class AwsS3Custom implements INodeType {
                                     name: 'fetchOwner',
                                     type: 'boolean',
                                     default: false,
-                                    description: 'The owner field is not present in listV2 by default, if you want to return owner field with each key in the result then set the fetch owner field to true',
+                                    description: 'Whether owner field is not present in listV2 by default, if you want to return owner field with each key in the result then set the fetch owner field to true',
                                 },
                                 {
                                     displayName: 'Folder Key',
