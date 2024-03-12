@@ -1,6 +1,6 @@
 {
   "name": "@cdmx/n8n-nodes-aws-s3-custom",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "S3 custom module.",
   "keywords": [
     "n8n-community-node-package"
@@ -29,7 +29,6 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [],
     "nodes": [
       "dist/nodes/AwsS3Custom/AwsS3Custom.node.js"
     ]
