@@ -33,7 +33,7 @@ async function awsApiRequestREST(this: any, service: any, method: any, path: any
 	try {
 			if (response.includes('<?xml version="1.0" encoding="UTF-8"?>')) {
 					return await new Promise((resolve, reject) => {
-							(0, xml2js_custom.parseString)(response, { explicitArray: false }, (err: any, data: any) => {
+							(xml2js_custom.parseString)(response, { explicitArray: false }, (err: any, data: any) => {
 									if (err) {
 											return reject(err);
 									}
@@ -56,26 +56,26 @@ async function awsApiRequestRESTAllItems(this: any, propertyName: string, servic
 		}
 		const query: Query = {};
 			responseData = await awsApiRequestREST.call(this, service, method, path, body, query, headers, {}, null);
-			if ((0, get_custom.default)(responseData, [propertyName.split('.')[0], 'NextContinuationToken'])) {
-					query['continuation-token'] = (0, get_custom.default)(responseData, [
+			if ((get_custom.default)(responseData, [propertyName.split('.')[0], 'NextContinuationToken'])) {
+					query['continuation-token'] = (get_custom.default)(responseData, [
 							propertyName.split('.')[0],
 							'NextContinuationToken',
 					]);
 			}
-			if ((0, get_custom.default)(responseData, propertyName)) {
-					if (Array.isArray((0, get_custom.default)(responseData, propertyName))) {
-							returnData.push.apply(returnData, (0, get_custom.default)(responseData, propertyName));
+			if ((get_custom.default)(responseData, propertyName)) {
+					if (Array.isArray((get_custom.default)(responseData, propertyName))) {
+							returnData.push.apply(returnData, (get_custom.default)(responseData, propertyName));
 					}
 					else {
-							returnData.push((0, get_custom.default)(responseData, propertyName));
+							returnData.push((get_custom.default)(responseData, propertyName));
 					}
 			}
 			const limit = query.limit;
 			if (limit && limit <= returnData.length) {
 					return returnData;
 			}
-	} while ((0, get_custom.default)(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== undefined &&
-			(0, get_custom.default)(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== 'false');
+	} while ((get_custom.default)(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== undefined &&
+			(get_custom.default)(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== 'false');
 	return returnData;
 }
 const regions = [
