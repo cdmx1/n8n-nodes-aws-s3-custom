@@ -116,7 +116,7 @@ export class AwsS3Custom implements INodeType {
                             const additionalFields: any = this.getNodeParameter('additionalFields', i);
                             const headers: Record<string, string> = {};
                             if (additionalFields.acl) {
-                                headers['x-amz-acl'] = (0, change_case_1.paramCase)(additionalFields.acl) as string;
+                                headers['x-amz-acl'] = (change_case_1.paramCase)(additionalFields.acl) as string;
                             }
                             if (additionalFields.bucketObjectLockEnabled) {
                                 headers['x-amz-bucket-object-lock-enabled'] = additionalFields.bucketObjectLockEnabled as string;
@@ -166,7 +166,7 @@ export class AwsS3Custom implements INodeType {
 																	path = `${basePath}/${additionalFields.parentFolderKey}/${folderName}/`;
 															}
 															if (additionalFields.storageClass) {
-																	headers['x-amz-storage-class'] = (0, change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
+																	headers['x-amz-storage-class'] = (change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
 															}
 															responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'GET', basePath, '', {
 																	location: '',
@@ -207,7 +207,7 @@ export class AwsS3Custom implements INodeType {
 																	}
 																	const builder = new xml2js_1.Builder();
 																	const data = builder.buildObject(body);
-																	headers['Content-MD5'] = (0, crypto_1.createHash)('md5').update(data).digest('base64');
+																	headers['Content-MD5'] = (crypto_1.createHash)('md5').update(data).digest('base64');
 																	headers['Content-Type'] = 'application/xml';
 																	responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${basePath}/`, data, { delete: '' }, headers, {}, region);
 																	responseData = { deleted: responseData.DeleteResult.Deleted };
@@ -260,10 +260,10 @@ export class AwsS3Custom implements INodeType {
                                 headers['x-amz-request-payer'] = 'requester';
                             }
                             if (additionalFields.storageClass) {
-                                headers['x-amz-storage-class'] = (0, change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
+                                headers['x-amz-storage-class'] = (change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
                             }
                             if (additionalFields.acl) {
-                                headers['x-amz-acl'] = (0, change_case_1.paramCase)(additionalFields.acl);
+                                headers['x-amz-acl'] = (change_case_1.paramCase)(additionalFields.acl);
                             }
                             if (additionalFields.grantFullControl) {
                                 headers['x-amz-grant-full-control'] = '';
@@ -438,10 +438,10 @@ export class AwsS3Custom implements INodeType {
                                 path = `${basePath}/${additionalFields.parentFolderKey}/${fileName}`;
                             }
                             if (additionalFields.storageClass) {
-                                multipartHeaders['x-amz-storage-class'] = (0, change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
+                                multipartHeaders['x-amz-storage-class'] = (change_case_1.snakeCase)(additionalFields.storageClass).toUpperCase();
                             }
                             if (additionalFields.acl) {
-                                multipartHeaders['x-amz-acl'] = (0, change_case_1.paramCase)(additionalFields.acl);
+                                multipartHeaders['x-amz-acl'] = (change_case_1.paramCase)(additionalFields.acl);
                             }
                             if (additionalFields.grantFullControl) {
                                 multipartHeaders['x-amz-grant-full-control'] = '';
@@ -515,7 +515,7 @@ export class AwsS3Custom implements INodeType {
                                         const chunkBuffer = await this.helpers.binaryToBuffer(chunk);
                                         const listHeaders = {
                                             'Content-Length': chunk.length,
-                                            'Content-MD5': (0, crypto_1.createHash)('MD5').update(chunkBuffer).digest('base64'),
+                                            'Content-MD5': (crypto_1.createHash)('MD5').update(chunkBuffer).digest('base64'),
                                             ...neededHeaders,
                                         };
                                         try {
@@ -566,7 +566,7 @@ export class AwsS3Custom implements INodeType {
                                     const data = builder.buildObject(body);
                                     const completeUpload = (await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'POST', `${path}?uploadId=${uploadId}`, data, qs, {
                                         ...neededHeaders,
-                                        'Content-MD5': (0, crypto_1.createHash)('md5').update(data).digest('base64'),
+                                        'Content-MD5': (crypto_1.createHash)('md5').update(data).digest('base64'),
                                         'Content-Type': 'application/xml',
                                     }, {}, region));
                                     responseData = {
@@ -578,7 +578,7 @@ export class AwsS3Custom implements INodeType {
                                     body = binaryDataBuffer;
                                     headers = { ...neededHeaders, ...multipartHeaders };
                                     headers['Content-Type'] = binaryPropertyData.mimeType;
-                                    headers['Content-MD5'] = (0, crypto_1.createHash)('md5').update(body).digest('base64');
+                                    headers['Content-MD5'] = (crypto_1.createHash)('md5').update(body).digest('base64');
                                     responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', path, body, qs, headers, {}, region);
                                 }
                                 const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(responseData !== null && responseData !== void 0 ? responseData : { success: true }), { itemData: { item: i } });
@@ -589,7 +589,7 @@ export class AwsS3Custom implements INodeType {
                                 body = Buffer.from(fileContent, 'utf8');
                                 headers = { ...neededHeaders, ...multipartHeaders };
                                 headers['Content-Type'] = 'text/html';
-                                headers['Content-MD5'] = (0, crypto_1.createHash)('md5').update(fileContent).digest('base64');
+                                headers['Content-MD5'] = (crypto_1.createHash)('md5').update(fileContent).digest('base64');
                                 responseData = await GenericFunctions_1.awsApiRequestREST.call(this, servicePath, 'PUT', path, body, qs, { ...headers }, {}, region);
                                 const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray({ success: true }), { itemData: { item: i } });
                                 returnData.push(...executionData);
