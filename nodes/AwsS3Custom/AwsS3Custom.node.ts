@@ -6,7 +6,7 @@ const n8n_workflow_1 = require("n8n-workflow");
 const BucketDescription_1 = require("./BucketDescription");
 const FolderDescription_1 = require("./FolderDescription");
 const FileDescription_1 = require("./FileDescription");
-const GenericFunctions_1 = require("./GenericFunctions_1");
+const GenericFunctions_1 = require("./GenericFunctions");
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
 interface ObjectWithKey {
 	Key: any;
