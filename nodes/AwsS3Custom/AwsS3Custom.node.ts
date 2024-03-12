@@ -3,10 +3,10 @@ const crypto_custom = require("crypto");
 const change_case_custom = require("change-case");
 const xml2js_custom = require("xml2js");
 const n8n_workflow_custom = require("n8n-workflow");
-const BucketDescription_custom = require("./BucketDescription");
-const FolderDescription_custom = require("./FolderDescription");
-const FileDescription_custom = require("./FileDescription");
-const GenericFunctions_custom = require("./GenericFunctions");
+const BucketDescription_custom = require("./BucketDescription.js");
+const FolderDescription_custom = require("./FolderDescription.js");
+const FileDescription_custom = require("./FileDescription.js");
+const GenericFunctions_custom = require("./GenericFunctions.js");
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
 interface ObjectWithKey {
 	Key: any;
