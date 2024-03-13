@@ -15,21 +15,15 @@ async function awsApiRequest(
   query: any,
   headers: any,
   key: string,
-  secret: any,
+  secret: string,
   region: string
 ): Promise<any> {
-  const currentDate: Date = new Date();
+	const currentDate: Date = new Date();
   const currentDateUTC: string = currentDate.toISOString().replace(/[:\-]|\.\d{3}/g, '');
   const bucket: string = path.split('/')[0];
-
-  const canonicalQuerystring: string = '';
-  const canonicalHeaders: string = `host:${bucket}.s3.${region}.amazonaws.com\nx-amz-content-sha256:UNSIGNED-PAYLOAD\nx-amz-date:${currentDateUTC}\n`;
   const signedHeaders: string = 'host;x-amz-content-sha256;x-amz-date';
-  const canonicalRequest: string = `${method}\n/${path}\n${canonicalQuerystring}\n${canonicalHeaders}\n${signedHeaders}\nUNSIGNED-PAYLOAD`;
-
   const credentialScope: string = `${currentDateUTC.substr(0, 8)}/${region}/${service}/aws4_request`;
   const algorithm: string = 'AWS4-HMAC-SHA256';
-  const stringToSign: string = `${algorithm}\n${currentDateUTC}\n${credentialScope}\n${crypto.createHash('sha256').update(canonicalRequest).digest('hex')}`;
 
   const signingKey: Buffer = crypto.createHmac('sha256', Buffer.from(`AWS4${secret}`, 'utf8')).update(currentDateUTC.substr(0, 8), 'utf8').digest();
   const signature: Buffer = crypto.createHmac('sha256', signingKey).update(region, 'utf8').digest();
@@ -37,7 +31,6 @@ async function awsApiRequest(
   const signatureFinalHex: string = signatureFinal.toString('hex');
 
   const authorizationHeader: string = `${algorithm} Credential=${key}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signatureFinalHex}`;
-
   const requestOptions: any = {
     method,
     url: `https://${bucket}.s3.${region}.amazonaws.com/${path}`,
@@ -82,7 +75,7 @@ async function awsApiRequestREST(
 	query = {},
 	headers: any,
 	key: string,
-	secret: any,
+	secret: string,
 	region: string
 ) {
 	const response = await awsApiRequest(
