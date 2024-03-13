@@ -270,6 +270,12 @@ export class AwsS3Custom implements INodeType {
 		defaults: {
 			name: 'AWS S3 Custom',
 		},
+		credentials: [
+			{
+					name: 'aws',
+					required: false,
+			},
+	  ],
 		inputs: ['main'],
 		outputs: ['main'],
 		properties: [
