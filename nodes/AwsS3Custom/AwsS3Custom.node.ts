@@ -1,20 +1,11 @@
-import type {
-	IExecuteFunctions,
-	INodeExecutionData,
-	INodeType,
-	INodeTypeDescription,
-} from 'n8n-workflow';
+import { IExecuteFunctions } from 'n8n-core';
+import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
+import get from 'lodash/get';
 const crypto_custom = require('crypto');
 const change_case_custom = require('change-case');
 const xml2js_custom = require('xml2js');
 const n8n_workflow_custom = require('n8n-workflow');
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
-var __importDefault =
-	(this as any)?.__importDefault ||
-	function (mod: any) {
-		return mod && mod.__esModule ? mod : { default: mod };
-	};
-const get_custom = __importDefault(require('lodash/get'));
 async function awsApiRequest(
 	this: any,
 	service: any,
@@ -112,27 +103,24 @@ async function awsApiRequestRESTAllItems(
 			{},
 			null,
 		);
-		if (get_custom.default(responseData, [propertyName.split('.')[0], 'NextContinuationToken'])) {
-			query['continuation-token'] = get_custom.default(responseData, [
-				propertyName.split('.')[0],
-				'NextContinuationToken',
-			]);
-		}
-		if (get_custom.default(responseData, propertyName)) {
-			if (Array.isArray(get_custom.default(responseData, propertyName))) {
-				returnData.push.apply(returnData, get_custom.default(responseData, propertyName));
+		if (get(responseData, [propertyName.split('.')[0], 'NextContinuationToken'])) {
+			query['continuation-token'] = get(responseData, [propertyName.split('.')[0], 'NextContinuationToken']);
+	}
+		if (get(responseData, propertyName)) {
+			if (Array.isArray(get(responseData, propertyName))) {
+					returnData.push(...get(responseData, propertyName));
 			} else {
-				returnData.push(get_custom.default(responseData, propertyName));
+					returnData.push(get(responseData, propertyName));
 			}
-		}
+	}
 		const limit = query.limit;
 		if (limit && limit <= returnData.length) {
 			return returnData;
 		}
 	} while (
-		get_custom.default(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== undefined &&
-		get_custom.default(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== 'false'
-	);
+    get(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== undefined &&
+    get(responseData, [propertyName.split('.')[0], 'IsTruncated']) !== 'false'
+ );
 	return returnData;
 }
 const regions = [
