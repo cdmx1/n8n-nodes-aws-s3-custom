@@ -1,4 +1,4 @@
-import { IExecuteFunctions } from 'n8n-core';
+import { getExecuteFunctions } from 'n8n-core';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
 import get from 'lodash/get';
 const crypto_custom = require('crypto');
@@ -1649,7 +1649,7 @@ export class AwsS3Custom implements INodeType {
 			},
 		],
 	};
-	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+	async execute(this: ReturnType<typeof getExecuteFunctions>): Promise<INodeExecutionData[][]> {
 			try {
 				var _a;
 				const items = this.getInputData();
