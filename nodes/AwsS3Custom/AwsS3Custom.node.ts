@@ -1770,7 +1770,7 @@ export class AwsS3Custom implements INodeType {
 										.snakeCase(additionalFields.storageClass)
 										.toUpperCase();
 								}
-								const region = responseData.LocationConstraint._;
+								const region = responseData.LocationConstraint._ as string;
 								responseData = await awsApiRequestREST(
 									servicePath,
 									'GET',
@@ -2041,7 +2041,7 @@ export class AwsS3Custom implements INodeType {
 								const destination = `${basePath}/${destinationParts
 									.slice(2, destinationParts.length)
 									.join('/')}`;
-								const region = responseData.LocationConstraint._;
+								const region = responseData.LocationConstraint._ as string;
 								responseData = await awsApiRequestREST(
 									servicePath,
 									'GET',
@@ -2127,7 +2127,7 @@ export class AwsS3Custom implements INodeType {
 								if (options.versionId) {
 									qs.versionId = options.versionId;
 								}
-								const region = responseData.LocationConstraint._;
+								const region = responseData.LocationConstraint._ as string;
 								responseData = await awsApiRequestREST(
 									servicePath,
 									'GET',
@@ -2312,7 +2312,7 @@ export class AwsS3Custom implements INodeType {
 									});
 									multipartHeaders['x-amz-tagging'] = tags.join('&');
 								}
-								const region = responseData.LocationConstraint._;
+								const region = responseData.LocationConstraint._ as string;
 								responseData = await awsApiRequestREST(
 									servicePath,
 									'GET',
