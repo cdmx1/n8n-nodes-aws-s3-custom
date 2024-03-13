@@ -1615,10 +1615,10 @@ export class AwsS3Custom implements INodeType {
                             if (additionalFields.grantFullControl) {
                                 headers['x-amz-grant-full-control'] = '';
                             }
-                            let region: string = credentials.region as string;
-                            if (additionalFields.region) {
-                                region = additionalFields.region as string;
-                            }
+                            // let region: string = credentials.region as string;
+                            // if (additionalFields.region) {
+                            //     region = additionalFields.region as string;
+                            // }
 
                             // const body: Record<string, any> = {
                             //     CreateBucketConfiguration: {
