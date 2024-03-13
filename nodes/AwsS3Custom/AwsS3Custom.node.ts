@@ -278,12 +278,7 @@ export class AwsS3Custom implements INodeType {
 		},
 		inputs: ['main'],
 		outputs: ['main'],
-		credentials: [
-			{
-					name: 'aws',
-					required: false,
-			}
-	  ],
+		credentials: [],
 		properties: [
 			{
 				displayName: 'Region',
