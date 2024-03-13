@@ -264,7 +264,7 @@ export class AwsS3Custom implements INodeType {
 		name: 'awsS3Custom',
 		icon: 'file:s3.svg',
 		group: ['output'],
-		version: 2,
+		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Sends data to AWS S3',
 		defaults: {
