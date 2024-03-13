@@ -1620,20 +1620,20 @@ export class AwsS3Custom implements INodeType {
                                 region = additionalFields.region as string;
                             }
 
-                            const body: Record<string, any> = {
-                                CreateBucketConfiguration: {
-                                    $: {
-                                        xmlns: 'http://s3.amazonaws.com/doc/2006-03-01/',
-                                    },
-                                },
-                            };
+                            // const body: Record<string, any> = {
+                            //     CreateBucketConfiguration: {
+                            //         $: {
+                            //             xmlns: 'http://s3.amazonaws.com/doc/2006-03-01/',
+                            //         },
+                            //     },
+                            // };
 
                             let data: string = '';
-                            if (region !== 'us-east-1') {
-                                body.CreateBucketConfiguration.LocationConstraint = [region];
-                                const builder = new xml2js_custom.Builder();
-                                data = builder.buildObject(body);
-                            }
+                            // if (region !== 'us-east-1') {
+                            //     body.CreateBucketConfiguration.LocationConstraint = [region];
+                            //     const builder = new xml2js_custom.Builder();
+                            //     data = builder.buildObject(body);
+                            // }
 
                             responseData = await awsApiRequestREST.call(this, `${name}.s3`, 'PUT', '', data, qs, headers, {}, null);
 
