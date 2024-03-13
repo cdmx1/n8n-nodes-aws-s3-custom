@@ -270,12 +270,6 @@ export class AwsS3Custom implements INodeType {
 		defaults: {
 			name: 'AWS S3 Custom',
 		},
-		credentials: [
-			{
-					name: 'aws',
-					required: false,
-			},
-	  ],
 		inputs: ['main'],
 		outputs: ['main'],
 		properties: [
@@ -1667,8 +1661,7 @@ export class AwsS3Custom implements INodeType {
 			},
 		],
 	};
-	execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		return (async () => {
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 			try {
 				var _a;
 				const items = this.getInputData();
@@ -2545,7 +2538,6 @@ export class AwsS3Custom implements INodeType {
 				}
 			} catch (error) {
 				throw error;
-			}
-		})();
+			};
 	}
 }
