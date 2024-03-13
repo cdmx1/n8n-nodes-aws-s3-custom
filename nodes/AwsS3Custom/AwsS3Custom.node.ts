@@ -3,7 +3,6 @@ const crypto_custom = require("crypto");
 const change_case_custom = require("change-case");
 const xml2js_custom = require("xml2js");
 const n8n_workflow_custom = require("n8n-workflow");
-// const GenericFunctions_custom = require("./GenericFunctions.js");
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
 var __importDefault = (this as any)?.__importDefault || function (mod: any) {
 	return (mod && mod.__esModule) ? mod : { "default": mod };
