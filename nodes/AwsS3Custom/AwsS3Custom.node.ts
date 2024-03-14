@@ -2,6 +2,7 @@ import { getExecuteFunctions } from 'n8n-core';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
 import get from 'lodash/get';
 const crypto = require('crypto');
+const aws4 = require('aws4');
 const axios = require('axios');
 const change_case = require('change-case');
 const xml2js = require('xml2js');
@@ -18,32 +19,30 @@ async function awsApiRequest(
   secret: string,
   region: string
 ): Promise<any> {
-	const currentDate: Date = new Date();
-  const currentDateUTC: string = currentDate.toISOString().replace(/[:\-]|\.\d{3}/g, '');
-  const bucket: string = path.split('/')[0];
-  const signedHeaders: string = 'host;x-amz-content-sha256;x-amz-date';
-  const credentialScope: string = `${currentDateUTC.substr(0, 8)}/${region}/${service}/aws4_request`;
-  const algorithm: string = 'AWS4-HMAC-SHA256';
-
-  const signingKey: Buffer = crypto.createHmac('sha256', Buffer.from(`AWS4${secret}`, 'utf8')).update(currentDateUTC.substr(0, 8), 'utf8').digest();
-  const signature: Buffer = crypto.createHmac('sha256', signingKey).update(region, 'utf8').digest();
-  const signatureFinal: Buffer = crypto.createHmac('sha256', signature).update(service, 'utf8').digest();
-  const signatureFinalHex: string = signatureFinal.toString('hex');
-
-  const authorizationHeader: string = `${algorithm} Credential=${key}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signatureFinalHex}`;
-  const requestOptions: any = {
-    method,
-    url: `https://${bucket}.s3.${region}.amazonaws.com/${path}`,
-    headers: {
-      Host: `${bucket}.s3.${region}.amazonaws.com`,
-      'X-Amz-Content-Sha256': 'UNSIGNED-PAYLOAD',
-      'X-Amz-Date': currentDateUTC,
-      Authorization: authorizationHeader,
-      ...headers
-    },
-    resolveWithFullResponse: true
-  };
-  const response = await axios(requestOptions);
+		const request = {
+			qs: { service, path, query: {} },
+			method,
+			path,
+			body,
+			headers: {
+					Host: `${service}.${region}.amazonaws.com`
+			},
+			encoding: null,
+			resolveWithFullResponse: true,
+			host: `${service}.${region}.amazonaws.com`,
+			region
+	};
+	// Sign the request using aws4 library
+	const signedRequest = aws4.sign(request, { accessKeyId: key, secretAccessKey: secret });
+	const requestOptions = {
+			method: signedRequest.method,
+			url: `https://${service}.${region}.amazonaws.com${path}`,
+			body: signedRequest.body,
+			headers: signedRequest.headers,
+			encoding: null,
+			resolveWithFullResponse: true
+	};
+	const response = await axios(requestOptions);
   try {
     if (response.data.includes('<?xml version="1.0" encoding="UTF-8"?>')) {
       return await new Promise((resolve, reject) => {
@@ -1744,7 +1743,6 @@ export class AwsS3Custom implements INodeType {
 								);
 								returnData.push(...executionData);
 							}
-							// Add similar blocks for other operations (delete, getAll, search)...
 						}
 						if (resource === 'folder') {
 							if (operation === 'create') {
