@@ -5,6 +5,7 @@ import { createHash } from 'crypto';
 import axios, { AxiosRequestConfig, Method } from 'axios';
 import { sign } from 'aws4';
 import type { Readable } from 'stream';
+import { parseRequestObject } from 'n8n-core'
 import { paramCase, snakeCase } from 'change-case';
 import { NodeOperationError } from 'n8n-workflow';
 import { bucketFields, bucketOperations } from './BucketDescription';
@@ -16,12 +17,12 @@ function queryToString(params: IDataObject) {
 		.map((key) => key + '=' + (params[key] as string))
 		.join('&');
 }
-async function makeRequest(uriOrObject: string | AxiosRequestConfig, options?: AxiosRequestConfig): Promise<any> {
+async function makeRequest(options: any): Promise<any> {
 	let axiosConfig: AxiosRequestConfig = {
 			maxBodyLength: Infinity,
 			maxContentLength: Infinity,
 	};
-	axiosConfig = Object.assign(axiosConfig, options);
+	axiosConfig = Object.assign(axiosConfig, await parseRequestObject(options));
 	const requestFn = async () => {
 			try {
 					return await axios(axiosConfig);
@@ -33,6 +34,7 @@ async function makeRequest(uriOrObject: string | AxiosRequestConfig, options?: A
 	try {
 			const response = await requestFn();
 			let responseBody = response.data;
+			responseBody = axiosConfig.responseType === 'arraybuffer' ? Buffer.alloc(0) : undefined;
 			if (typeof responseBody === 'string' && responseBody.includes('<?xml version="1.0" encoding="UTF-8"?>')) {
 					return new Promise((resolve, reject) => {
 							parseString(responseBody, { explicitArray: false }, (err, data) => {
@@ -83,7 +85,8 @@ async function awsApiRequest(
 			method: signedRequest.method as Method || 'GET',
 			url: `https://${service}.${region}.amazonaws.com${path}`,
 			data: signedRequest.body,
-			headers: signedRequest.headers
+			headers: signedRequest.headers,
+			responseType: 'arraybuffer'
 	};
 	const response = await makeRequest(requestOptions);
   return response
