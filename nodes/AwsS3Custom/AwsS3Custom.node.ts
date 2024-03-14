@@ -6,6 +6,9 @@ import { sign } from 'aws4';
 import type { Readable } from 'stream';
 import { paramCase, snakeCase } from 'change-case';
 import { NodeOperationError } from 'n8n-workflow';
+import { bucketFields, bucketOperations } from './BucketDescription';
+import { folderFields, folderOperations } from './FolderDescription';
+import { fileFields, fileOperations } from './FileDescription';
 const axios = require('axios');
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
 async function awsApiRequest(
@@ -247,9 +250,6 @@ const regions = [
 		location: 'Oregon',
 	},
 ];
-interface ObjectWithKey {
-	Key: any;
-}
 interface QueryString {
 	prefix?: any;
 	'fetch-owner'?: any;
@@ -322,1352 +322,24 @@ export class AwsS3Custom implements INodeType {
 				],
 				default: 'file',
 			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['bucket'],
-					},
-				},
-				options: [
-					{
-						name: 'Create',
-						value: 'create',
-						description: 'Create a bucket',
-						action: 'Create a bucket',
-					},
-					{
-						name: 'Delete',
-						value: 'delete',
-						description: 'Delete a bucket',
-						action: 'Delete a bucket',
-					},
-					{
-						name: 'Get Many',
-						value: 'getAll',
-						description: 'Get many buckets',
-						action: 'Get many buckets',
-					},
-					{
-						name: 'Search',
-						value: 'search',
-						description: 'Search within a bucket',
-						action: 'Search a bucket',
-					},
-				],
-				default: 'create',
-			},
-			{
-				displayName: 'Name',
-				name: 'name',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['bucket'],
-						operation: ['create'],
-					},
-				},
-				description:
-					'A succinct description of the nature, symptoms, cause, or effect of the bucket',
-			},
-			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				displayOptions: {
-					show: {
-						resource: ['bucket'],
-						operation: ['create'],
-					},
-				},
-				default: {},
-				options: [
-					{
-						displayName: 'ACL',
-						name: 'acl',
-						type: 'options',
-						options: [
-							{
-								name: 'Authenticated Read',
-								value: 'authenticatedRead',
-							},
-							{
-								name: 'Private',
-								value: 'Private',
-							},
-							{
-								name: 'Public Read',
-								value: 'publicRead',
-							},
-							{
-								name: 'Public Read Write',
-								value: 'publicReadWrite',
-							},
-						],
-						default: 'authenticatedRead',
-						description: 'The canned ACL to apply to the bucket',
-					},
-					{
-						displayName: 'Bucket Object Lock Enabled',
-						name: 'bucketObjectLockEnabled',
-						type: 'boolean',
-						default: false,
-						description: 'Whether you want S3 Object Lock to be enabled for the new bucket',
-					},
-					{
-						displayName: 'Grant Full Control',
-						name: 'grantFullControl',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether to allow grantee the read, write, read ACP, and write ACP permissions on the bucket',
-					},
-					{
-						displayName: 'Grant Read',
-						name: 'grantRead',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to list the objects in the bucket',
-					},
-					{
-						displayName: 'Grant Read ACP',
-						name: 'grantReadAcp',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to read the bucket ACL',
-					},
-					{
-						displayName: 'Grant Write',
-						name: 'grantWrite',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether to allow grantee to create, overwrite, and delete any object in the bucket',
-					},
-					{
-						displayName: 'Grant Write ACP',
-						name: 'grantWriteAcp',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to write the ACL for the applicable bucket',
-					},
-					{
-						displayName: 'Region',
-						name: 'region',
-						type: 'string',
-						default: '',
-						description:
-							'Region you want to create the bucket in, by default the buckets are created on the region defined on the credentials',
-					},
-				],
-			},
-			{
-				displayName: 'Name',
-				name: 'name',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['bucket'],
-						operation: ['delete'],
-					},
-				},
-				description: 'Name of the AWS S3 bucket to delete',
-			},
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['getAll'],
-						resource: ['bucket'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['getAll'],
-						resource: ['bucket'],
-						returnAll: [false],
-					},
-				},
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 50,
-				description: 'Max number of results to return',
-			},
-			{
-				displayName: 'Bucket Name',
-				name: 'bucketName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['bucket'],
-						operation: ['search'],
-					},
-				},
-			},
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['search'],
-						resource: ['bucket'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['search'],
-						resource: ['bucket'],
-						returnAll: [false],
-					},
-				},
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 50,
-				description: 'Max number of results to return',
-			},
-			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				displayOptions: {
-					show: {
-						resource: ['bucket'],
-						operation: ['search'],
-					},
-				},
-				default: {},
-				options: [
-					{
-						displayName: 'Delimiter',
-						name: 'delimiter',
-						type: 'string',
-						default: '',
-						description: 'A delimiter is a character you use to group keys',
-					},
-					{
-						displayName: 'Encoding Type',
-						name: 'encodingType',
-						type: 'options',
-						options: [
-							{
-								name: 'URL',
-								value: 'url',
-							},
-						],
-						default: 'url',
-						description: 'Encoding type used by Amazon S3 to encode object keys in the response',
-					},
-					{
-						displayName: 'Fetch Owner',
-						name: 'fetchOwner',
-						type: 'boolean',
-						default: false,
-					},
-					{
-						displayName: 'Prefix',
-						name: 'prefix',
-						type: 'string',
-						default: '',
-						description: 'Limits the response to keys that begin with the specified prefix',
-					},
-					{
-						displayName: 'Requester Pays',
-						name: 'requesterPays',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether the requester will pay for requests and data transfer. While Requester Pays is enabled, anonymous access to this bucket is disabled.',
-					},
-					{
-						displayName: 'Start After',
-						name: 'startAfter',
-						type: 'string',
-						default: '',
-						description:
-							'StartAfter is where you want Amazon S3 to start listing from. Amazon S3 starts listing after this specified key.',
-					},
-				],
-			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['folder'],
-					},
-				},
-				options: [
-					{
-						name: 'Create',
-						value: 'create',
-						description: 'Create a folder',
-						action: 'Create a folder',
-					},
-					{
-						name: 'Delete',
-						value: 'delete',
-						description: 'Delete a folder',
-						action: 'Delete a folder',
-					},
-					{
-						name: 'Get Many',
-						value: 'getAll',
-						description: 'Get many folders',
-						action: 'Get many folders',
-					},
-				],
-				default: 'create',
-			},
-			{
-				displayName: 'Bucket Name',
-				name: 'bucketName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['folder'],
-						operation: ['create'],
-					},
-				},
-			},
-			{
-				displayName: 'Folder Name',
-				name: 'folderName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['folder'],
-						operation: ['create'],
-					},
-				},
-			},
-			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				displayOptions: {
-					show: {
-						resource: ['folder'],
-						operation: ['create'],
-					},
-				},
-				default: {},
-				options: [
-					{
-						displayName: 'Parent Folder Key',
-						name: 'parentFolderKey',
-						type: 'string',
-						default: '',
-						description: 'Parent folder you want to create the folder in',
-					},
-					{
-						displayName: 'Requester Pays',
-						name: 'requesterPays',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether the requester will pay for requests and data transfer. While Requester Pays is enabled, anonymous access to this bucket is disabled.',
-					},
-					{
-						displayName: 'Storage Class',
-						name: 'storageClass',
-						type: 'options',
-						options: [
-							{
-								name: 'Deep Archive',
-								value: 'deepArchive',
-							},
-							{
-								name: 'Glacier',
-								value: 'glacier',
-							},
-							{
-								name: 'Intelligent Tiering',
-								value: 'intelligentTiering',
-							},
-							{
-								name: 'One Zone IA',
-								value: 'onezoneIA',
-							},
-							{
-								name: 'Reduced Redundancy',
-								value: 'RecudedRedundancy',
-							},
-							{
-								name: 'Standard',
-								value: 'standard',
-							},
-							{
-								name: 'Standard IA',
-								value: 'standardIA',
-							},
-						],
-						default: 'standard',
-						description: 'Amazon S3 storage classes',
-					},
-				],
-			},
-			{
-				displayName: 'Bucket Name',
-				name: 'bucketName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['folder'],
-						operation: ['delete'],
-					},
-				},
-			},
-			{
-				displayName: 'Folder Key',
-				name: 'folderKey',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['folder'],
-						operation: ['delete'],
-					},
-				},
-			},
-			{
-				displayName: 'Bucket Name',
-				name: 'bucketName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['folder'],
-						operation: ['getAll'],
-					},
-				},
-			},
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['getAll'],
-						resource: ['folder'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['getAll'],
-						resource: ['folder'],
-						returnAll: [false],
-					},
-				},
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 50,
-				description: 'Max number of results to return',
-			},
-			{
-				displayName: 'Options',
-				name: 'options',
-				type: 'collection',
-				placeholder: 'Add Field',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['folder'],
-						operation: ['getAll'],
-					},
-				},
-				options: [
-					{
-						displayName: 'Fetch Owner',
-						name: 'fetchOwner',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether owner field is not present in listV2 by default, if you want to return owner field with each key in the result then set the fetch owner field to true',
-					},
-					{
-						displayName: 'Folder Key',
-						name: 'folderKey',
-						type: 'string',
-						default: '',
-					},
-				],
-			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['file'],
-					},
-				},
-				options: [
-					{
-						name: 'Copy',
-						value: 'copy',
-						description: 'Copy a file',
-						action: 'Copy a file',
-					},
-					{
-						name: 'Delete',
-						value: 'delete',
-						description: 'Delete a file',
-						action: 'Delete a file',
-					},
-					{
-						name: 'Download',
-						value: 'download',
-						description: 'Download a file',
-						action: 'Download a file',
-					},
-					{
-						name: 'Get Many',
-						value: 'getAll',
-						description: 'Get many files',
-						action: 'Get many files',
-					},
-					{
-						name: 'Upload',
-						value: 'upload',
-						description: 'Upload a file',
-						action: 'Upload a file',
-					},
-				],
-				default: 'download',
-			},
-			{
-				displayName: 'Source Path',
-				name: 'sourcePath',
-				type: 'string',
-				required: true,
-				default: '',
-				placeholder: '/bucket/my-image.jpg',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['copy'],
-					},
-				},
-				description:
-					'The name of the source bucket and key name of the source object, separated by a slash (/)',
-			},
-			{
-				displayName: 'Destination Path',
-				name: 'destinationPath',
-				type: 'string',
-				required: true,
-				default: '',
-				placeholder: '/bucket/my-second-image.jpg',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['copy'],
-					},
-				},
-				description:
-					'The name of the destination bucket and key name of the destination object, separated by a slash (/)',
-			},
-			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['copy'],
-					},
-				},
-				default: {},
-				options: [
-					{
-						displayName: 'ACL',
-						name: 'acl',
-						type: 'options',
-						options: [
-							{
-								name: 'Authenticated Read',
-								value: 'authenticatedRead',
-							},
-							{
-								name: 'AWS Exec Read',
-								value: 'awsExecRead',
-							},
-							{
-								name: 'Bucket Owner Full Control',
-								value: 'bucketOwnerFullControl',
-							},
-							{
-								name: 'Bucket Owner Read',
-								value: 'bucketOwnerRead',
-							},
-							{
-								name: 'Private',
-								value: 'private',
-							},
-							{
-								name: 'Public Read',
-								value: 'publicRead',
-							},
-							{
-								name: 'Public Read Write',
-								value: 'publicReadWrite',
-							},
-						],
-						default: 'private',
-						description: 'The canned ACL to apply to the object',
-					},
-					{
-						displayName: 'Grant Full Control',
-						name: 'grantFullControl',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether to give the grantee READ, READ_ACP, and WRITE_ACP permissions on the object',
-					},
-					{
-						displayName: 'Grant Read',
-						name: 'grantRead',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to read the object data and its metadata',
-					},
-					{
-						displayName: 'Grant Read ACP',
-						name: 'grantReadAcp',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to read the object ACL',
-					},
-					{
-						displayName: 'Grant Write ACP',
-						name: 'grantWriteAcp',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to write the ACL for the applicable object',
-					},
-					{
-						displayName: 'Lock Legal Hold',
-						name: 'lockLegalHold',
-						type: 'boolean',
-						default: false,
-						description: 'Whether a legal hold will be applied to this object',
-					},
-					{
-						displayName: 'Lock Mode',
-						name: 'lockMode',
-						type: 'options',
-						options: [
-							{
-								name: 'Governance',
-								value: 'governance',
-							},
-							{
-								name: 'Compliance',
-								value: 'compliance',
-							},
-						],
-						default: 'governance',
-						description: 'The Object Lock mode that you want to apply to this object',
-					},
-					{
-						displayName: 'Lock Retain Until Date',
-						name: 'lockRetainUntilDate',
-						type: 'dateTime',
-						default: '',
-						description: "The date and time when you want this object's Object Lock to expire",
-					},
-					{
-						displayName: 'Metadata Directive',
-						name: 'metadataDirective',
-						type: 'options',
-						options: [
-							{
-								name: 'Copy',
-								value: 'copy',
-							},
-							{
-								name: 'Replace',
-								value: 'replace',
-							},
-						],
-						default: 'copy',
-						description:
-							'Specifies whether the metadata is copied from the source object or replaced with metadata provided in the request',
-					},
-					{
-						displayName: 'Requester Pays',
-						name: 'requesterPays',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether the requester will pay for requests and data transfer. While Requester Pays is enabled, anonymous access to this bucket is disabled.',
-					},
-					{
-						displayName: 'Server Side Encryption',
-						name: 'serverSideEncryption',
-						type: 'options',
-						options: [
-							{
-								name: 'AES256',
-								value: 'AES256',
-							},
-							{
-								name: 'AWS:KMS',
-								value: 'aws:kms',
-							},
-						],
-						default: 'AES256',
-						description:
-							'The server-side encryption algorithm used when storing this object in Amazon S3',
-					},
-					{
-						displayName: 'Server Side Encryption Context',
-						name: 'serverSideEncryptionContext',
-						type: 'string',
-						default: '',
-						description: 'Specifies the AWS KMS Encryption Context to use for object encryption',
-					},
-					{
-						displayName: 'Server Side Encryption AWS KMS Key ID',
-						name: 'encryptionAwsKmsKeyId',
-						type: 'string',
-						default: '',
-						description: 'If x-amz-server-side-encryption is present and has the value of aws:kms',
-					},
-					{
-						displayName: 'Server Side Encryption Customer Algorithm',
-						name: 'serversideEncryptionCustomerAlgorithm',
-						type: 'string',
-						default: '',
-						description:
-							'Specifies the algorithm to use to when encrypting the object (for example, AES256)',
-					},
-					{
-						displayName: 'Server Side Encryption Customer Key',
-						name: 'serversideEncryptionCustomerKey',
-						type: 'string',
-						default: '',
-						description:
-							'Specifies the customer-provided encryption key for Amazon S3 to use in encrypting data',
-					},
-					{
-						displayName: 'Server Side Encryption Customer Key MD5',
-						name: 'serversideEncryptionCustomerKeyMD5',
-						type: 'string',
-						default: '',
-						description:
-							'Specifies the 128-bit MD5 digest of the encryption key according to RFC 1321',
-					},
-					{
-						displayName: 'Storage Class',
-						name: 'storageClass',
-						type: 'options',
-						options: [
-							{
-								name: 'Deep Archive',
-								value: 'deepArchive',
-							},
-							{
-								name: 'Glacier',
-								value: 'glacier',
-							},
-							{
-								name: 'Intelligent Tiering',
-								value: 'intelligentTiering',
-							},
-							{
-								name: 'One Zone IA',
-								value: 'onezoneIA',
-							},
-							{
-								name: 'Standard',
-								value: 'standard',
-							},
-							{
-								name: 'Standard IA',
-								value: 'standardIA',
-							},
-						],
-						default: 'standard',
-						description: 'Amazon S3 storage classes',
-					},
-					{
-						displayName: 'Tagging Directive',
-						name: 'taggingDirective',
-						type: 'options',
-						options: [
-							{
-								name: 'Copy',
-								value: 'copy',
-							},
-							{
-								name: 'Replace',
-								value: 'replace',
-							},
-						],
-						default: 'copy',
-						description:
-							'Specifies whether the metadata is copied from the source object or replaced with metadata provided in the request',
-					},
-				],
-			},
-			{
-				displayName: 'Bucket Name',
-				name: 'bucketName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['upload'],
-					},
-				},
-			},
-			{
-				displayName: 'File Name',
-				name: 'fileName',
-				type: 'string',
-				default: '',
-				placeholder: 'hello.txt',
-				required: true,
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['upload'],
-						binaryData: [false],
-					},
-				},
-			},
-			{
-				displayName: 'File Name',
-				name: 'fileName',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['upload'],
-						binaryData: [true],
-					},
-				},
-				description: 'If not set the binary data filename will be used',
-			},
-			{
-				displayName: 'Binary File',
-				name: 'binaryData',
-				type: 'boolean',
-				default: true,
-				displayOptions: {
-					show: {
-						operation: ['upload'],
-						resource: ['file'],
-					},
-				},
-				description: 'Whether the data to upload should be taken from binary field',
-			},
-			{
-				displayName: 'File Content',
-				name: 'fileContent',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						operation: ['upload'],
-						resource: ['file'],
-						binaryData: [false],
-					},
-				},
-				placeholder: '',
-				description: 'The text content of the file to upload',
-			},
-			{
-				displayName: 'Input Binary Field',
-				name: 'binaryPropertyName',
-				type: 'string',
-				default: 'data',
-				required: true,
-				displayOptions: {
-					show: {
-						operation: ['upload'],
-						resource: ['file'],
-						binaryData: [true],
-					},
-				},
-				placeholder: '',
-				hint: 'The name of the input binary field containing the file to be uploaded',
-			},
-			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['upload'],
-					},
-				},
-				default: {},
-				options: [
-					{
-						displayName: 'ACL',
-						name: 'acl',
-						type: 'options',
-						options: [
-							{
-								name: 'Authenticated Read',
-								value: 'authenticatedRead',
-							},
-							{
-								name: 'AWS Exec Read',
-								value: 'awsExecRead',
-							},
-							{
-								name: 'Bucket Owner Full Control',
-								value: 'bucketOwnerFullControl',
-							},
-							{
-								name: 'Bucket Owner Read',
-								value: 'bucketOwnerRead',
-							},
-							{
-								name: 'Private',
-								value: 'private',
-							},
-							{
-								name: 'Public Read',
-								value: 'publicRead',
-							},
-							{
-								name: 'Public Read Write',
-								value: 'publicReadWrite',
-							},
-						],
-						default: 'private',
-						description: 'The canned ACL to apply to the object',
-					},
-					{
-						displayName: 'Grant Full Control',
-						name: 'grantFullControl',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether to give the grantee READ, READ_ACP, and WRITE_ACP permissions on the object',
-					},
-					{
-						displayName: 'Grant Read',
-						name: 'grantRead',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to read the object data and its metadata',
-					},
-					{
-						displayName: 'Grant Read ACP',
-						name: 'grantReadAcp',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to read the object ACL',
-					},
-					{
-						displayName: 'Grant Write ACP',
-						name: 'grantWriteAcp',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow grantee to write the ACL for the applicable object',
-					},
-					{
-						displayName: 'Lock Legal Hold',
-						name: 'lockLegalHold',
-						type: 'boolean',
-						default: false,
-						description: 'Whether a legal hold will be applied to this object',
-					},
-					{
-						displayName: 'Lock Mode',
-						name: 'lockMode',
-						type: 'options',
-						options: [
-							{
-								name: 'Governance',
-								value: 'governance',
-							},
-							{
-								name: 'Compliance',
-								value: 'compliance',
-							},
-						],
-						default: 'governance',
-						description: 'The Object Lock mode that you want to apply to this object',
-					},
-					{
-						displayName: 'Lock Retain Until Date',
-						name: 'lockRetainUntilDate',
-						type: 'dateTime',
-						default: '',
-						description: "The date and time when you want this object's Object Lock to expire",
-					},
-					{
-						displayName: 'Parent Folder Key',
-						name: 'parentFolderKey',
-						type: 'string',
-						default: '',
-						description: 'Parent folder you want to create the file in',
-					},
-					{
-						displayName: 'Requester Pays',
-						name: 'requesterPays',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether the requester will pay for requests and data transfer. While Requester Pays is enabled, anonymous access to this bucket is disabled.',
-					},
-					{
-						displayName: 'Server Side Encryption',
-						name: 'serverSideEncryption',
-						type: 'options',
-						options: [
-							{
-								name: 'AES256',
-								value: 'AES256',
-							},
-							{
-								name: 'AWS:KMS',
-								value: 'aws:kms',
-							},
-						],
-						default: 'AES256',
-						description:
-							'The server-side encryption algorithm used when storing this object in Amazon S3',
-					},
-					{
-						displayName: 'Server Side Encryption Context',
-						name: 'serverSideEncryptionContext',
-						type: 'string',
-						default: '',
-						description: 'Specifies the AWS KMS Encryption Context to use for object encryption',
-					},
-					{
-						displayName: 'Server Side Encryption AWS KMS Key ID',
-						name: 'encryptionAwsKmsKeyId',
-						type: 'string',
-						default: '',
-						description: 'If x-amz-server-side-encryption is present and has the value of aws:kms',
-					},
-					{
-						displayName: 'Server Side Encryption Customer Algorithm',
-						name: 'serversideEncryptionCustomerAlgorithm',
-						type: 'string',
-						default: '',
-						description:
-							'Specifies the algorithm to use to when encrypting the object (for example, AES256)',
-					},
-					{
-						displayName: 'Server Side Encryption Customer Key',
-						name: 'serversideEncryptionCustomerKey',
-						type: 'string',
-						default: '',
-						description:
-							'Specifies the customer-provided encryption key for Amazon S3 to use in encrypting data',
-					},
-					{
-						displayName: 'Server Side Encryption Customer Key MD5',
-						name: 'serversideEncryptionCustomerKeyMD5',
-						type: 'string',
-						default: '',
-						description:
-							'Specifies the 128-bit MD5 digest of the encryption key according to RFC 1321',
-					},
-					{
-						displayName: 'Storage Class',
-						name: 'storageClass',
-						type: 'options',
-						options: [
-							{
-								name: 'Deep Archive',
-								value: 'deepArchive',
-							},
-							{
-								name: 'Glacier',
-								value: 'glacier',
-							},
-							{
-								name: 'Intelligent Tiering',
-								value: 'intelligentTiering',
-							},
-							{
-								name: 'One Zone IA',
-								value: 'onezoneIA',
-							},
-							{
-								name: 'Standard',
-								value: 'standard',
-							},
-							{
-								name: 'Standard IA',
-								value: 'standardIA',
-							},
-						],
-						default: 'standard',
-						description: 'Amazon S3 storage classes',
-					},
-				],
-			},
-			{
-				displayName: 'Tags',
-				name: 'tagsUi',
-				placeholder: 'Add Tag',
-				type: 'fixedCollection',
-				default: {},
-				typeOptions: {
-					multipleValues: true,
-				},
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['upload'],
-					},
-				},
-				options: [
-					{
-						name: 'tagsValues',
-						displayName: 'Tag',
-						values: [
-							{
-								displayName: 'Key',
-								name: 'key',
-								type: 'string',
-								default: '',
-							},
-							{
-								displayName: 'Value',
-								name: 'value',
-								type: 'string',
-								default: '',
-							},
-						],
-					},
-				],
-				description: 'Optional extra headers to add to the message (most headers are allowed)',
-			},
-			{
-				displayName: 'Bucket Name',
-				name: 'bucketName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['download'],
-					},
-				},
-			},
-			{
-				displayName: 'File Key',
-				name: 'fileKey',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['download'],
-					},
-				},
-			},
-			{
-				displayName: 'Put Output File in Field',
-				name: 'binaryPropertyName',
-				type: 'string',
-				required: true,
-				default: 'data',
-				displayOptions: {
-					show: {
-						operation: ['download'],
-						resource: ['file'],
-					},
-				},
-				hint: 'The name of the output binary field to put the file in',
-			},
-			{
-				displayName: 'Bucket Name',
-				name: 'bucketName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['delete'],
-					},
-				},
-			},
-			{
-				displayName: 'File Key',
-				name: 'fileKey',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['delete'],
-					},
-				},
-			},
-			{
-				displayName: 'Options',
-				name: 'options',
-				type: 'collection',
-				placeholder: 'Add Field',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['delete'],
-					},
-				},
-				options: [
-					{
-						displayName: 'Version ID',
-						name: 'versionId',
-						type: 'string',
-						default: '',
-					},
-				],
-			},
-			{
-				displayName: 'Bucket Name',
-				name: 'bucketName',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['getAll'],
-					},
-				},
-			},
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['getAll'],
-						resource: ['file'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['getAll'],
-						resource: ['file'],
-						returnAll: [false],
-					},
-				},
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 50,
-				description: 'Max number of results to return',
-			},
-			{
-				displayName: 'Options',
-				name: 'options',
-				type: 'collection',
-				placeholder: 'Add Field',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['file'],
-						operation: ['getAll'],
-					},
-				},
-				options: [
-					{
-						displayName: 'Fetch Owner',
-						name: 'fetchOwner',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether owner field is not present in listV2 by default, if you want to return owner field with each key in the result then set the fetch owner field to true',
-					},
-					{
-						displayName: 'Folder Key',
-						name: 'folderKey',
-						type: 'string',
-						default: '',
-					},
-				],
-			},
+							// BUCKET
+							...bucketOperations,
+							...bucketFields,
+							// FOLDER
+							...folderOperations,
+							...folderFields,
+							// UPLOAD
+							...fileOperations,
+							...fileFields,
 		],
 	};
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-			try {
-				var _a;
 				const items = this.getInputData();
-				const returnData = [];
+				const returnData: INodeExecutionData[] = [];
+				// const qs: IDataObject = {};
 				let responseData;
+				const resource = this.getNodeParameter('resource', 0);
+				const operation = this.getNodeParameter('operation', 0);
 				const region = this.getNodeParameter('region', 0) as string;
 				const accessKeyId = this.getNodeParameter('accessKeyId', 0) as string;
 				const secretAccessKey = this.getNodeParameter('secretAccessKey', 0) as string;
@@ -1678,17 +350,14 @@ export class AwsS3Custom implements INodeType {
 					temporaryCredentials: false,
 					customEndpoints: false,
 				};
-				const resource = this.getNodeParameter('resource', 0);
-				const operation = this.getNodeParameter('operation', 0);
 				for (let i = 0; i < items.length; i++) {
-					let headers: { [key: string]: any } = {};
+					let headers: IDataObject = {};
 					let qs: QueryString = {};
 					try {
 						if (resource === 'bucket') {
 							if (operation === 'create') {
 								const name: string = this.getNodeParameter('name', i) as string;
 								const additionalFields: any = this.getNodeParameter('additionalFields', i);
-								const headers: Record<string, string> = {};
 								if (additionalFields.acl) {
 									headers['x-amz-acl'] = paramCase(
 										additionalFields.acl,
@@ -1761,19 +430,6 @@ export class AwsS3Custom implements INodeType {
 								const region = responseData.LocationConstraint._ as string;
 								responseData = await awsApiRequestREST(
 									servicePath,
-									'GET',
-									basePath,
-									'',
-									{
-										location: '',
-									},
-									{},
-									accessKeyId,
-									secretAccessKey,
-									region
-								);
-								responseData = await awsApiRequestREST(
-									servicePath,
 									'PUT',
 									path,
 									'',
@@ -1795,19 +451,6 @@ export class AwsS3Custom implements INodeType {
 								const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
 								const folderKey = this.getNodeParameter('folderKey', i);
 								const region: string = responseData.LocationConstraint._;
-								responseData = await awsApiRequestREST(
-									servicePath,
-									'GET',
-									basePath,
-									'',
-									{
-										location: '',
-									},
-									{},
-									accessKeyId,
-									secretAccessKey,
-									region
-								);
 								responseData = await awsApiRequestRESTAllItems(
 									'ListBucketResult.Contents',
 									servicePath,
@@ -1818,7 +461,7 @@ export class AwsS3Custom implements INodeType {
 									{},
 									accessKeyId,
 									secretAccessKey,
-									region
+									region as string,
 								);
 								if (responseData.length === 0) {
 									responseData = await awsApiRequestREST(
@@ -1830,7 +473,7 @@ export class AwsS3Custom implements INodeType {
 										{},
 										accessKeyId,
 										secretAccessKey,
-										region
+										region as string,
 									);
 									responseData = { deleted: [{ Key: folderKey }] };
 								} else {
@@ -1842,10 +485,10 @@ export class AwsS3Custom implements INodeType {
 											Object: [],
 										},
 									};
-									const objectsArray: ObjectWithKey[] = body.Delete.Object;
 									for (const childObject of responseData) {
-										objectsArray.push({
-											Key: childObject.Key,
+										//@ts-ignore
+										(body.Delete.Object as IDataObject[]).push({
+											Key: childObject.Key as string,
 										});
 									}
 									const builder = new Builder();
@@ -1863,7 +506,7 @@ export class AwsS3Custom implements INodeType {
 										headers,
 										accessKeyId,
 										secretAccessKey,
-										region
+										region as string,
 									);
 									responseData = { deleted: responseData.DeleteResult.Deleted };
 								}
@@ -1886,20 +529,7 @@ export class AwsS3Custom implements INodeType {
 									qs['fetch-owner'] = options.fetchOwner;
 								}
 								qs['list-type'] = 2;
-								const region: string = responseData.LocationConstraint._;
-								responseData = await awsApiRequestREST(
-									servicePath,
-									'GET',
-									basePath,
-									'',
-									{
-										location: '',
-									},
-									{},
-									accessKeyId,
-									secretAccessKey,
-									region
-								);
+								const region = responseData.LocationConstraint._;
 								if (returnAll) {
 									responseData = await awsApiRequestRESTAllItems(
 										'ListBucketResult.Contents',
@@ -1911,7 +541,7 @@ export class AwsS3Custom implements INodeType {
 										{},
 										accessKeyId,
 										secretAccessKey,
-										region
+										region as string,
 									);
 								} else {
 									qs.limit = this.getNodeParameter('limit', 0);
@@ -1925,7 +555,7 @@ export class AwsS3Custom implements INodeType {
 										{},
 										accessKeyId,
 										secretAccessKey,
-										region
+										region as string,
 									);
 								}
 								if (Array.isArray(responseData)) {
@@ -2031,13 +661,11 @@ export class AwsS3Custom implements INodeType {
 								const region = responseData.LocationConstraint._ as string;
 								responseData = await awsApiRequestREST(
 									servicePath,
-									'GET',
-									basePath,
+									'PUT',
 									'',
-									{
-										location: '',
-									},
-									{},
+									destination,
+									qs,
+									headers,
 									accessKeyId,
 									secretAccessKey,
 									region
@@ -2081,33 +709,33 @@ export class AwsS3Custom implements INodeType {
 									{ encoding: null, resolveWithFullResponse: true },
 									accessKeyId,
 									secretAccessKey,
-									region
+									region as string,
 								);
 								let mimeType: string | undefined;
-									if (response.headers['content-type']) {
-										mimeType = response.headers['content-type'];
-									}
+								if (response.headers['content-type']) {
+									mimeType = response.headers['content-type'];
+								}
 
-									const newItem: INodeExecutionData = {
-										json: items[i].json,
-										binary: {},
-									};
+								const newItem: INodeExecutionData = {
+									json: items[i].json,
+									binary: {},
+								};
 
-									if (items[i].binary !== undefined && newItem.binary) {
-										Object.assign(newItem.binary, items[i].binary);
-									}
+								if (items[i].binary !== undefined && newItem.binary) {
+									Object.assign(newItem.binary, items[i].binary);
+								}
 
-									items[i] = newItem;
+								items[i] = newItem;
 
-									const dataPropertyNameDownload = this.getNodeParameter('binaryPropertyName', i);
+								const dataPropertyNameDownload = this.getNodeParameter('binaryPropertyName', i);
 
-									const data = Buffer.from(response.body as string, 'utf8');
+								const data = Buffer.from(response.body as string, 'utf8');
 
-									items[i].binary![dataPropertyNameDownload] = await this.helpers.prepareBinaryData(
-										data as unknown as Buffer,
-										fileName,
-										mimeType,
-									);
+								items[i].binary![dataPropertyNameDownload] = await this.helpers.prepareBinaryData(
+									data as unknown as Buffer,
+									fileName,
+									mimeType,
+								);
 							}
 							if (operation === 'delete') {
 								const bucketName = this.getNodeParameter('bucketName', i) as string;
@@ -2118,20 +746,7 @@ export class AwsS3Custom implements INodeType {
 								if (options.versionId) {
 									qs.versionId = options.versionId;
 								}
-								const region = responseData.LocationConstraint._ as string;
-								responseData = await awsApiRequestREST(
-									servicePath,
-									'GET',
-									basePath,
-									'',
-									{
-										location: '',
-									},
-									{},
-									accessKeyId,
-									secretAccessKey,
-									region
-								);
+								const region = responseData.LocationConstraint._;
 								responseData = await awsApiRequestREST(
 									servicePath,
 									'DELETE',
@@ -2141,7 +756,7 @@ export class AwsS3Custom implements INodeType {
 									{},
 									accessKeyId,
 									secretAccessKey,
-									region
+									region as string,
 								);
 								const executionData = this.helpers.constructExecutionMetaData(
 									this.helpers.returnJsonArray({ success: true }),
@@ -2163,20 +778,7 @@ export class AwsS3Custom implements INodeType {
 								}
 								qs.delimiter = '/';
 								qs['list-type'] = 2;
-								const region: string = responseData.LocationConstraint._;
-								responseData = await awsApiRequestREST(
-									servicePath,
-									'GET',
-									basePath,
-									'',
-									{
-										location: '',
-									},
-									{},
-									accessKeyId,
-									secretAccessKey,
-									region
-								);
+								const region = responseData.LocationConstraint._;
 								if (returnAll) {
 									responseData = await awsApiRequestRESTAllItems(
 										'ListBucketResult.Contents',
@@ -2188,7 +790,7 @@ export class AwsS3Custom implements INodeType {
 										{},
 										accessKeyId,
 										secretAccessKey,
-										region
+										region as string,
 									);
 								} else {
 									qs.limit = this.getNodeParameter('limit', 0);
@@ -2202,7 +804,7 @@ export class AwsS3Custom implements INodeType {
 										{},
 										accessKeyId,
 										secretAccessKey,
-										region
+										region as string,
 									);
 									responseData = responseData.splice(0, qs.limit);
 								}
@@ -2229,8 +831,8 @@ export class AwsS3Custom implements INodeType {
 									?.tagsValues;
 								let path = `${basePath}/${fileName}`;
 								let body;
-								const multipartHeaders: { [key: string]: any } = {};
-								const neededHeaders: { [key: string]: any } = {};
+								const multipartHeaders: IDataObject = {};
+								const neededHeaders: IDataObject = {};
 								if (additionalFields.requesterPays) {
 									neededHeaders['x-amz-request-payer'] = 'requester';
 								}
@@ -2303,20 +905,7 @@ export class AwsS3Custom implements INodeType {
 									});
 									multipartHeaders['x-amz-tagging'] = tags.join('&');
 								}
-								const region = responseData.LocationConstraint._ as string;
-								responseData = await awsApiRequestREST(
-									servicePath,
-									'GET',
-									basePath,
-									'',
-									{
-										location: '',
-									},
-									{},
-									accessKeyId,
-									secretAccessKey,
-									region
-								);
+								const region = responseData.LocationConstraint._;
 								if (isBinaryData) {
 									const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i);
 									const binaryPropertyData = this.helpers.assertBinaryData(i, binaryPropertyName);
@@ -2336,7 +925,7 @@ export class AwsS3Custom implements INodeType {
 											{ ...neededHeaders, ...multipartHeaders },
 											accessKeyId,
 											secretAccessKey,
-											region
+											region as string,
 										);
 										const uploadId = createMultiPartUpload.InitiateMultipartUploadResult.UploadId;
 										let part = 1;
@@ -2359,7 +948,7 @@ export class AwsS3Custom implements INodeType {
 													listHeaders,
 													accessKeyId,
 													secretAccessKey,
-													region
+													region as string,
 												);
 												part++;
 											} catch (error) {
@@ -2378,14 +967,10 @@ export class AwsS3Custom implements INodeType {
 												} catch (err) {
 													throw new NodeOperationError(this.getNode(), err);
 												}
-												if (
-													((_a = error.response) === null || _a === void 0 ? void 0 : _a.status) !==
-													308
-												)
-													throw error;
+												if (error.response?.status !== 308) throw error;
 											}
 										}
-										const listParts = await awsApiRequestREST(
+										const listParts = (await awsApiRequestREST(
 											servicePath,
 											'GET',
 											`${path}?max-parts=${900}&part-number-marker=0&uploadId=${uploadId}`,
@@ -2394,8 +979,20 @@ export class AwsS3Custom implements INodeType {
 											{ ...neededHeaders },
 											accessKeyId,
 											secretAccessKey,
-											region
-										);
+											region as string,
+										)) as {
+											ListPartsResult: {
+												Part:
+													| Array<{
+															ETag: string;
+															PartNumber: number;
+														}>
+													| {
+															ETag: string;
+															PartNumber: number;
+														};
+											};
+										};
 										if (!Array.isArray(listParts.ListPartsResult.Part)) {
 											body = {
 												CompleteMultipartUpload: {
@@ -2439,8 +1036,8 @@ export class AwsS3Custom implements INodeType {
 												'Content-Type': 'application/xml',
 											},
 											accessKeyId,
-									secretAccessKey,
-									region
+											secretAccessKey,
+											region as string,
 										);
 										responseData = {
 											...completeUpload.CompleteMultipartUploadResult,
@@ -2465,7 +1062,7 @@ export class AwsS3Custom implements INodeType {
 											headers,
 											accessKeyId,
 											secretAccessKey,
-											region
+											region as string,
 										);
 									}
 									const executionData = this.helpers.constructExecutionMetaData(
@@ -2494,7 +1091,7 @@ export class AwsS3Custom implements INodeType {
 										{},
 										accessKeyId,
 										secretAccessKey,
-										region
+										region as string,
 									);
 									const executionData = this.helpers.constructExecutionMetaData(
 										this.helpers.returnJsonArray({ success: true }),
@@ -2521,8 +1118,5 @@ export class AwsS3Custom implements INodeType {
 				} else {
 					return [returnData];
 				}
-			} catch (error) {
-				throw error;
-			};
 	}
 }
