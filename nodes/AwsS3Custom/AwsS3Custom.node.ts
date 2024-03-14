@@ -2,6 +2,7 @@ import { INodeExecutionData, INodeType, INodeTypeDescription, IExecuteFunctions,
 import get from 'lodash/get';
 import { parseString, Builder } from 'xml2js';
 import { createHash } from 'crypto';
+import axios, { AxiosRequestConfig, Method } from 'axios';
 import { sign } from 'aws4';
 import type { Readable } from 'stream';
 import { paramCase, snakeCase } from 'change-case';
@@ -9,8 +10,49 @@ import { NodeOperationError } from 'n8n-workflow';
 import { bucketFields, bucketOperations } from './BucketDescription';
 import { folderFields, folderOperations } from './FolderDescription';
 import { fileFields, fileOperations } from './FileDescription';
-const axios = require('axios');
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
+function queryToString(params: IDataObject) {
+	return Object.keys(params)
+		.map((key) => key + '=' + (params[key] as string))
+		.join('&');
+}
+async function makeRequest(uriOrObject: string | AxiosRequestConfig, options?: AxiosRequestConfig): Promise<any> {
+	let axiosConfig: AxiosRequestConfig = {
+			maxBodyLength: Infinity,
+			maxContentLength: Infinity,
+	};
+	axiosConfig = Object.assign(axiosConfig, options);
+	const requestFn = async () => {
+			try {
+					return await axios(axiosConfig);
+			} catch (error) {
+					throw error;
+			}
+	};
+
+	try {
+			const response = await requestFn();
+			let responseBody = response.data;
+			if (typeof responseBody === 'string' && responseBody.includes('<?xml version="1.0" encoding="UTF-8"?>')) {
+					return new Promise((resolve, reject) => {
+							parseString(responseBody, { explicitArray: false }, (err, data) => {
+									if (err) {
+											return reject(err);
+									}
+									resolve(data);
+							});
+					});
+			}
+			// Parse JSON response if applicable
+			if (typeof responseBody === 'string') {
+					return JSON.parse(responseBody);
+			}
+			// Return raw response if no special processing is needed
+			return responseBody;
+	} catch (error) {
+			throw error;
+	}
+}
 async function awsApiRequest(
   service: string,
   method: IHttpRequestMethods,
@@ -25,7 +67,7 @@ async function awsApiRequest(
 		const request = {
 			qs: { service, path, query: {} },
 			method,
-			path,
+			path: `${path}?${queryToString(query).replace(/\+/g, '%2B')}`,
 			body,
 			headers: {
 					Host: `${service}.${region}.amazonaws.com`
@@ -37,32 +79,15 @@ async function awsApiRequest(
 	};
 	// Sign the request using aws4 library
 	const signedRequest = sign(request, { accessKeyId: key, secretAccessKey: secret });
-	const requestOptions = {
-			method: signedRequest.method,
+	const requestOptions: AxiosRequestConfig = {
+			method: signedRequest.method as Method || 'GET',
 			url: `https://${service}.${region}.amazonaws.com${path}`,
-			body: signedRequest.body,
-			headers: signedRequest.headers,
-			encoding: null,
-			resolveWithFullResponse: true
+			data: signedRequest.body,
+			headers: signedRequest.headers
 	};
-	const response = await axios(requestOptions);
-    try {
-			if (response.includes('<?xml version="1.0" encoding="UTF-8"?>')) {
-				return await new Promise((resolve, reject) => {
-					parseString(response as string, { explicitArray: false }, (err, data) => {
-						if (err) {
-							return reject(err);
-						}
-						resolve(data);
-					});
-				});
-			}
-			return JSON.parse(response as string);
-		} catch (error) {
-			return response;
-		}
+	const response = await makeRequest(requestOptions);
+  return response
 }
-
 async function awsApiRequestREST(
 	this: any,
 	service: any,
