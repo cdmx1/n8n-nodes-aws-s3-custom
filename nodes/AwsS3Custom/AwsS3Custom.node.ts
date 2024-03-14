@@ -1,23 +1,23 @@
-import { getExecuteFunctions } from 'n8n-core';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
+import { INodeExecutionData, INodeType, INodeTypeDescription, IExecuteFunctions, IHttpRequestMethods, IDataObject } from 'n8n-workflow';
 import get from 'lodash/get';
-const crypto = require('crypto');
-const aws4 = require('aws4');
+import { parseString, Builder } from 'xml2js';
+import { createHash } from 'crypto';
+import { sign } from 'aws4';
+import type { Readable } from 'stream';
+import { paramCase, snakeCase } from 'change-case';
+import { NodeOperationError } from 'n8n-workflow';
 const axios = require('axios');
-const change_case = require('change-case');
-const xml2js = require('xml2js');
-const n8n_workflow = require('n8n-workflow');
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
 async function awsApiRequest(
   service: string,
-  method: string,
-  path: string,
-  body: any,
-  query: any,
-  headers: any,
-  key: string,
-  secret: string,
-  region: string
+  method: IHttpRequestMethods,
+	path: string,
+	body?: string | Buffer | any,
+  query: IDataObject = {},
+  headers?: object,
+  key?: string,
+  secret?: string,
+  region?: string
 ): Promise<any> {
 		const request = {
 			qs: { service, path, query: {} },
@@ -33,7 +33,7 @@ async function awsApiRequest(
 			region
 	};
 	// Sign the request using aws4 library
-	const signedRequest = aws4.sign(request, { accessKeyId: key, secretAccessKey: secret });
+	const signedRequest = sign(request, { accessKeyId: key, secretAccessKey: secret });
 	const requestOptions = {
 			method: signedRequest.method,
 			url: `https://${service}.${region}.amazonaws.com${path}`,
@@ -43,26 +43,21 @@ async function awsApiRequest(
 			resolveWithFullResponse: true
 	};
 	const response = await axios(requestOptions);
-  try {
-    if (response.data.includes('<?xml version="1.0" encoding="UTF-8"?>')) {
-      return await new Promise((resolve, reject) => {
-        xml2js.parseString(response.data, { explicitArray: false }, (err: any, data: any) => {
-          if (err) {
-            return reject(err);
-          }
-          resolve(data);
-        });
-      });
-    } else {
-      try {
-        return JSON.parse(response.data);
-      } catch (error) {
-        return response.data;
-      }
-    }
-  } catch (error) {
-    return response.data;
-  }
+    try {
+			if (response.includes('<?xml version="1.0" encoding="UTF-8"?>')) {
+				return await new Promise((resolve, reject) => {
+					parseString(response as string, { explicitArray: false }, (err, data) => {
+						if (err) {
+							return reject(err);
+						}
+						resolve(data);
+					});
+				});
+			}
+			return JSON.parse(response as string);
+		} catch (error) {
+			return response;
+		}
 }
 
 async function awsApiRequestREST(
@@ -1667,7 +1662,7 @@ export class AwsS3Custom implements INodeType {
 			},
 		],
 	};
-	async execute(this: ReturnType<typeof getExecuteFunctions>): Promise<INodeExecutionData[][]> {
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 			try {
 				var _a;
 				const items = this.getInputData();
@@ -1695,7 +1690,7 @@ export class AwsS3Custom implements INodeType {
 								const additionalFields: any = this.getNodeParameter('additionalFields', i);
 								const headers: Record<string, string> = {};
 								if (additionalFields.acl) {
-									headers['x-amz-acl'] = change_case.paramCase(
+									headers['x-amz-acl'] = paramCase(
 										additionalFields.acl,
 									) as string;
 								}
@@ -1722,7 +1717,7 @@ export class AwsS3Custom implements INodeType {
 								let data: string = '';
 								if (region !== 'us-east-1') {
 									body.CreateBucketConfiguration.LocationConstraint = [region];
-									const builder = new xml2js.Builder();
+									const builder = new Builder();
 									data = builder.buildObject(body);
 								}
 								responseData = await awsApiRequestREST(
@@ -1759,8 +1754,8 @@ export class AwsS3Custom implements INodeType {
 									path = `${basePath}/${additionalFields.parentFolderKey}/${folderName}/`;
 								}
 								if (additionalFields.storageClass) {
-									headers['x-amz-storage-class'] = change_case
-										.snakeCase(additionalFields.storageClass)
+									headers['x-amz-storage-class'] =
+										snakeCase(additionalFields.storageClass as string,)
 										.toUpperCase();
 								}
 								const region = responseData.LocationConstraint._ as string;
@@ -1853,10 +1848,9 @@ export class AwsS3Custom implements INodeType {
 											Key: childObject.Key,
 										});
 									}
-									const builder = new xml2js.Builder();
+									const builder = new Builder();
 									const data = builder.buildObject(body);
-									headers['Content-MD5'] = crypto
-										.createHash('md5')
+									headers['Content-MD5'] = createHash('md5')
 										.update(data)
 										.digest('base64');
 									headers['Content-Type'] = 'application/xml';
@@ -1959,12 +1953,12 @@ export class AwsS3Custom implements INodeType {
 									headers['x-amz-request-payer'] = 'requester';
 								}
 								if (additionalFields.storageClass) {
-									headers['x-amz-storage-class'] = change_case
-										.snakeCase(additionalFields.storageClass)
+									headers['x-amz-storage-class'] =
+										snakeCase(additionalFields.storageClass as string)
 										.toUpperCase();
 								}
 								if (additionalFields.acl) {
-									headers['x-amz-acl'] = change_case.paramCase(additionalFields.acl);
+									headers['x-amz-acl'] = paramCase(additionalFields.acl as string);
 								}
 								if (additionalFields.grantFullControl) {
 									headers['x-amz-grant-full-control'] = '';
@@ -2073,7 +2067,7 @@ export class AwsS3Custom implements INodeType {
 								const fileKey = this.getNodeParameter('fileKey', i) as string;
 								const fileName = fileKey.split('/')[fileKey.split('/').length - 1];
 								if (fileKey.substring(fileKey.length - 1) === '/') {
-									throw new n8n_workflow.NodeOperationError(
+									throw new NodeOperationError(
 										this.getNode(),
 										'Downloading a whole directory is not yet supported, please provide a file key',
 									);
@@ -2089,27 +2083,31 @@ export class AwsS3Custom implements INodeType {
 									secretAccessKey,
 									region
 								);
-								let mimeType;
-								if (response.headers['content-type']) {
-									mimeType = response.headers['content-type'];
-								}
-								const newItem = {
-									json: items[i].json,
-									binary: {},
-								};
-								if (items[i].binary !== undefined && newItem.binary) {
-									Object.assign(newItem.binary, items[i].binary);
-								}
-								items[i] = newItem;
-								const dataPropertyNameDownload = this.getNodeParameter('binaryPropertyName', i);
-								const data = Buffer.from(response.body, 'utf8');
-								if (items[i]) {
-									items[i].binary[dataPropertyNameDownload] = await this.helpers.prepareBinaryData(
-										data,
+								let mimeType: string | undefined;
+									if (response.headers['content-type']) {
+										mimeType = response.headers['content-type'];
+									}
+
+									const newItem: INodeExecutionData = {
+										json: items[i].json,
+										binary: {},
+									};
+
+									if (items[i].binary !== undefined && newItem.binary) {
+										Object.assign(newItem.binary, items[i].binary);
+									}
+
+									items[i] = newItem;
+
+									const dataPropertyNameDownload = this.getNodeParameter('binaryPropertyName', i);
+
+									const data = Buffer.from(response.body as string, 'utf8');
+
+									items[i].binary![dataPropertyNameDownload] = await this.helpers.prepareBinaryData(
+										data as unknown as Buffer,
 										fileName,
 										mimeType,
 									);
-								}
 							}
 							if (operation === 'delete') {
 								const bucketName = this.getNodeParameter('bucketName', i) as string;
@@ -2240,13 +2238,13 @@ export class AwsS3Custom implements INodeType {
 									path = `${basePath}/${additionalFields.parentFolderKey}/${fileName}`;
 								}
 								if (additionalFields.storageClass) {
-									multipartHeaders['x-amz-storage-class'] = change_case
-										.snakeCase(additionalFields.storageClass)
+									multipartHeaders['x-amz-storage-class'] =
+										snakeCase(additionalFields.storageClass as string)
 										.toUpperCase();
 								}
 								if (additionalFields.acl) {
-									multipartHeaders['x-amz-acl'] = change_case.paramCase(
-										additionalFields.acl,
+									multipartHeaders['x-amz-acl'] = paramCase(
+										additionalFields.acl as string,
 									);
 								}
 								if (additionalFields.grantFullControl) {
@@ -2322,7 +2320,7 @@ export class AwsS3Custom implements INodeType {
 								if (isBinaryData) {
 									const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i);
 									const binaryPropertyData = this.helpers.assertBinaryData(i, binaryPropertyName);
-									let uploadData;
+									let uploadData: Buffer | Readable;
 									multipartHeaders['Content-Type'] = binaryPropertyData.mimeType;
 									if (binaryPropertyData.id) {
 										uploadData = await this.helpers.getBinaryStream(
@@ -2346,8 +2344,7 @@ export class AwsS3Custom implements INodeType {
 											const chunkBuffer = await this.helpers.binaryToBuffer(chunk);
 											const listHeaders = {
 												'Content-Length': chunk.length,
-												'Content-MD5': crypto
-													.createHash('MD5')
+												'Content-MD5': createHash('MD5')
 													.update(chunkBuffer)
 													.digest('base64'),
 												...neededHeaders,
@@ -2379,7 +2376,7 @@ export class AwsS3Custom implements INodeType {
 														region
 													);
 												} catch (err) {
-													throw new n8n_workflow.NodeOperationError(this.getNode(), err);
+													throw new NodeOperationError(this.getNode(), err);
 												}
 												if (
 													((_a = error.response) === null || _a === void 0 ? void 0 : _a.status) !==
@@ -2426,7 +2423,7 @@ export class AwsS3Custom implements INodeType {
 												},
 											};
 										}
-										const builder = new xml2js.Builder();
+										const builder = new Builder();
 										const data = builder.buildObject(body);
 										const completeUpload = await awsApiRequestREST(
 											servicePath,
@@ -2436,8 +2433,7 @@ export class AwsS3Custom implements INodeType {
 											qs,
 											{
 												...neededHeaders,
-												'Content-MD5': crypto
-													.createHash('md5')
+												'Content-MD5': createHash('md5')
 													.update(data)
 													.digest('base64'),
 												'Content-Type': 'application/xml',
@@ -2457,8 +2453,7 @@ export class AwsS3Custom implements INodeType {
 										body = binaryDataBuffer;
 										headers = { ...neededHeaders, ...multipartHeaders };
 										headers['Content-Type'] = binaryPropertyData.mimeType;
-										headers['Content-MD5'] = crypto
-											.createHash('md5')
+										headers['Content-MD5'] = createHash('md5')
 											.update(body)
 											.digest('base64');
 										responseData = await awsApiRequestREST(
@@ -2487,8 +2482,7 @@ export class AwsS3Custom implements INodeType {
 									body = Buffer.from(fileContent, 'utf8');
 									headers = { ...neededHeaders, ...multipartHeaders };
 									headers['Content-Type'] = 'text/html';
-									headers['Content-MD5'] = crypto
-										.createHash('md5')
+									headers['Content-MD5'] = createHash('md5')
 										.update(fileContent)
 										.digest('base64');
 									responseData = await awsApiRequestREST(
