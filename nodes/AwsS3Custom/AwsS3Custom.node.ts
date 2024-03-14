@@ -529,7 +529,7 @@ export class AwsS3Custom implements INodeType {
 									qs['fetch-owner'] = options.fetchOwner;
 								}
 								qs['list-type'] = 2;
-								const region = responseData.LocationConstraint._;
+								const region = responseData.LocationConstraint._ as string;
 								if (returnAll) {
 									responseData = await awsApiRequestRESTAllItems(
 										'ListBucketResult.Contents',
@@ -746,7 +746,7 @@ export class AwsS3Custom implements INodeType {
 								if (options.versionId) {
 									qs.versionId = options.versionId;
 								}
-								const region = responseData.LocationConstraint._;
+								const region = responseData.LocationConstraint._ as string;
 								responseData = await awsApiRequestREST(
 									servicePath,
 									'DELETE',
@@ -778,7 +778,7 @@ export class AwsS3Custom implements INodeType {
 								}
 								qs.delimiter = '/';
 								qs['list-type'] = 2;
-								const region = responseData.LocationConstraint._;
+								const region = responseData.LocationConstraint._ as string;
 								if (returnAll) {
 									responseData = await awsApiRequestRESTAllItems(
 										'ListBucketResult.Contents',
@@ -905,7 +905,7 @@ export class AwsS3Custom implements INodeType {
 									});
 									multipartHeaders['x-amz-tagging'] = tags.join('&');
 								}
-								const region = responseData.LocationConstraint._;
+								const region = responseData.LocationConstraint._ as string;
 								if (isBinaryData) {
 									const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i);
 									const binaryPropertyData = this.helpers.assertBinaryData(i, binaryPropertyName);
@@ -1022,7 +1022,7 @@ export class AwsS3Custom implements INodeType {
 										}
 										const builder = new Builder();
 										const data = builder.buildObject(body);
-										const completeUpload = await awsApiRequestREST(
+										const completeUpload = (await awsApiRequestREST(
 											servicePath,
 											'POST',
 											`${path}?uploadId=${uploadId}`,
@@ -1038,7 +1038,14 @@ export class AwsS3Custom implements INodeType {
 											accessKeyId,
 											secretAccessKey,
 											region as string,
-										);
+										)) as {
+											CompleteMultipartUploadResult: {
+												Location: string;
+												Bucket: string;
+												Key: string;
+												ETag: string;
+											};
+										};
 										responseData = {
 											...completeUpload.CompleteMultipartUploadResult,
 										};
