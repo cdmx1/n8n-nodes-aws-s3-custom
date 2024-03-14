@@ -94,7 +94,7 @@ export const bucketFields: INodeProperties[] = [
 						value: 'publicReadWrite',
 					},
 				],
-				default: '',
+				default: 'publicRead',
 				description: 'The canned ACL to apply to the bucket',
 			},
 			{
@@ -198,10 +198,9 @@ export const bucketFields: INodeProperties[] = [
 			},
 		},
 		typeOptions: {
-			minValue: 1,
-			maxValue: 500,
+			minValue: 1
 		},
-		default: 100,
+		default: 50,
 		description: 'Max number of results to return',
 	},
 	/* -------------------------------------------------------------------------- */
@@ -245,10 +244,9 @@ export const bucketFields: INodeProperties[] = [
 			},
 		},
 		typeOptions: {
-			minValue: 1,
-			maxValue: 500,
+			minValue: 1
 		},
-		default: 100,
+		default: 50,
 		description: 'Max number of results to return',
 	},
 	{
@@ -281,7 +279,7 @@ export const bucketFields: INodeProperties[] = [
 						value: 'url',
 					},
 				],
-				default: '',
+				default: 'url',
 				description: 'Encoding type used by Amazon S3 to encode object keys in the response',
 			},
 			{

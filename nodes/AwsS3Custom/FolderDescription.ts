@@ -202,10 +202,9 @@ export const folderFields: INodeProperties[] = [
 			},
 		},
 		typeOptions: {
-			minValue: 1,
-			maxValue: 500,
+			minValue: 1
 		},
-		default: 100,
+		default: 50,
 		description: 'Max number of results to return',
 	},
 	{
