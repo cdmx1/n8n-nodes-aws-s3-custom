@@ -1,6 +1,6 @@
 import { INodeExecutionData, INodeType, INodeTypeDescription, IExecuteFunctions, IHttpRequestMethods, IDataObject } from 'n8n-workflow';
 import get from 'lodash/get';
-import { config, S3 } from 'aws-sdk';
+import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { parseString, Builder } from 'xml2js';
 import { createHash } from 'crypto';
 import { sign } from 'aws4';
@@ -12,6 +12,28 @@ import { folderFields, folderOperations } from './FolderDescription';
 import { fileFields, fileOperations } from './FileDescription';
 const axios = require('axios');
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
+
+async function awsGetFile( bucketName: string, key: string, accessKeyId: any, secretAccessKey: any, region: string) {
+	const client = new S3Client({
+		credentials: {
+			accessKeyId,
+			secretAccessKey,
+		},
+		region,
+	});
+	try {
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    });
+
+    const response = await client.send(command);
+    response.Body = await (response.Body as any).arrayBuffer();
+		return response;
+} catch (error) {
+	return error;
+}
+}
 
 async function awsApiRequest(
   service: string,
@@ -64,23 +86,26 @@ async function awsApiRequest(
 		} catch (error) {
 			return response;
 		}
-}
+	}
 async function copyFileInS3(sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
-	config.update({
-			accessKeyId: accessKeyId,
-			secretAccessKey: secretAccessKey,
-			region: region
+	const client = new S3Client({
+		credentials: {
+			accessKeyId,
+			secretAccessKey,
+		},
+		region,
 	});
-	const s3 = new S3();
 	try {
-			// Retrieve file content from the source location
-			const { Body } = await s3.getObject({ Bucket: sourceBucketName, Key: sourceKey }).promise();
 
-			// Upload the retrieved content to the destination location
-			await s3.upload({ Bucket: destinationBucketName, Key: destinationKey, Body }).promise();
+			const copyCommand = new CopyObjectCommand({
+				CopySource: `/${sourceBucketName}/${sourceKey}`,
+				Bucket: destinationBucketName,
+				Key: destinationKey,
+			});
+			await client.send(copyCommand);
 			return {
 					success: true,
-					message: "File moved successfully",
+					message: "File copied successfully",
 					source: {
 							bucket: sourceBucketName,
 							key: sourceKey
@@ -99,39 +124,44 @@ async function copyFileInS3(sourceBucketName: any, sourceKey: any, destinationBu
 	}
 }
 async function moveFileInS3(sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
-	config.update({
-			accessKeyId: accessKeyId,
-			secretAccessKey: secretAccessKey,
-			region: region
-	});
-	const s3 = new S3();
 	try {
-			// Retrieve file content from the source location
-			const { Body } = await s3.getObject({ Bucket: sourceBucketName, Key: sourceKey }).promise();
-
-			// Upload the retrieved content to the destination location
-			await s3.upload({ Bucket: destinationBucketName, Key: destinationKey, Body }).promise();
-			// Delete the file from the source location
-			await s3.deleteObject({ Bucket: sourceBucketName, Key: sourceKey }).promise();
-			return {
-					success: true,
-					message: "File moved successfully",
-					source: {
-							bucket: sourceBucketName,
-							key: sourceKey
-					},
-					destination: {
-							bucket: destinationBucketName,
-							key: destinationKey
-					}
-			};
-	} catch (error) {
-			return {
-					success: false,
-					message: "Error moving file",
-					error: error.message
-			};
-	}
+		const client = new S3Client({
+			credentials: {
+				accessKeyId,
+				secretAccessKey,
+			},
+			region,
+		});
+		const copyCommand = new CopyObjectCommand({
+			CopySource: `/${sourceBucketName}/${sourceKey}`,
+			Bucket: destinationBucketName,
+			Key: destinationKey,
+		});
+		await client.send(copyCommand);
+		const deleteCommand = new DeleteObjectCommand({
+			Bucket: sourceBucketName,
+			Key: sourceKey,
+		});
+		await client.send(deleteCommand);
+		return {
+				success: true,
+				message: "File moved successfully",
+				source: {
+						bucket: sourceBucketName,
+						key: sourceKey
+				},
+				destination: {
+						bucket: destinationBucketName,
+						key: destinationKey
+				}
+		};
+} catch (error) {
+		return {
+				success: false,
+				message: "Error moving file",
+				error: error.message
+		};
+}
 }
 async function awsApiRequestREST(
 	this: any,
@@ -847,25 +877,7 @@ export class AwsS3Custom implements INodeType {
 										'Downloading a whole directory is not yet supported, please provide a file key',
 									);
 								}
-								// const response = await awsApiRequestREST(
-								// 	servicePath,
-								// 	'GET',
-								// 	`${basePath}/${fileKey}`,
-								// 	'',
-								// 	qs,
-								// 	{ encoding: null, resolveWithFullResponse: true },
-								// 	accessKeyId,
-								// 	secretAccessKey,
-								// 	region as string,
-								// );
-								// Retrieve file content and metadata from the specified location
-								config.update({
-									accessKeyId,
-									secretAccessKey,
-									region
-								});
-								const s3 = new S3();
-								const response = await s3.getObject({ Bucket: bucketName, Key: fileKey }).promise();
+								const response = await awsGetFile(bucketName, fileKey, accessKeyId, secretAccessKey, region);
 								const newItem: INodeExecutionData = {
 									json: items[i].json,
 									binary: {},
@@ -876,7 +888,7 @@ export class AwsS3Custom implements INodeType {
 								}
 								items[i] = newItem;
 								const dataPropertyNameDownload = this.getNodeParameter('binaryPropertyName', i);
-								const data = Buffer.from(response.Body as string, 'utf8');
+								const data = Buffer.from(response.Body as any, 'utf8');
 								items[i].binary![dataPropertyNameDownload] = await this.helpers.prepareBinaryData(
 									data as unknown as Buffer,
 									fileName,
