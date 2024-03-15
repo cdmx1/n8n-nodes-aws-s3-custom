@@ -37,6 +37,12 @@ export const fileOperations: INodeProperties[] = [
 				action: 'Get many files',
 			},
 			{
+				name: 'Move',
+				value: 'move',
+				description: 'Move a file',
+				action: 'Move a file',
+			},
+			{
 				name: 'Upload',
 				value: 'upload',
 				description: 'Upload a file',
@@ -61,7 +67,7 @@ export const fileFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['file'],
-				operation: ['copy'],
+				operation: ['copy','move'],
 			},
 		},
 		description:
@@ -77,7 +83,7 @@ export const fileFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['file'],
-				operation: ['copy'],
+				operation: ['copy','move'],
 			},
 		},
 		description:
@@ -91,7 +97,7 @@ export const fileFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['file'],
-				operation: ['copy'],
+				operation: ['copy','move'],
 			},
 		},
 		default: {},

@@ -1,5 +1,6 @@
 import { INodeExecutionData, INodeType, INodeTypeDescription, IExecuteFunctions, IHttpRequestMethods, IDataObject } from 'n8n-workflow';
 import get from 'lodash/get';
+import { config, S3 } from 'aws-sdk';
 import { parseString, Builder } from 'xml2js';
 import { createHash } from 'crypto';
 import { sign } from 'aws4';
@@ -11,6 +12,7 @@ import { folderFields, folderOperations } from './FolderDescription';
 import { fileFields, fileOperations } from './FileDescription';
 const axios = require('axios');
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
+
 async function awsApiRequest(
   service: string,
   method: IHttpRequestMethods,
@@ -43,13 +45,14 @@ async function awsApiRequest(
 			body: signedRequest.body,
 			headers: signedRequest.headers,
 			encoding: null,
-			resolveWithFullResponse: true
+			resolveWithFullResponse: true,
+			responseType: 'arraybuffer'
 	};
 	const response = await axios(requestOptions);
     try {
 			if (response.includes('<?xml version="1.0" encoding="UTF-8"?>')) {
 				return await new Promise((resolve, reject) => {
-					parseString(response as string, { explicitArray: false }, (err, data) => {
+					parseString(response as string, { explicitArray: false }, (err: any, data: unknown) => {
 						if (err) {
 							return reject(err);
 						}
@@ -57,12 +60,79 @@ async function awsApiRequest(
 					});
 				});
 			}
-			return JSON.parse(response as string);
+			return response;
 		} catch (error) {
 			return response;
 		}
 }
+async function copyFileInS3(sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
+	config.update({
+			accessKeyId: accessKeyId,
+			secretAccessKey: secretAccessKey,
+			region: region
+	});
+	const s3 = new S3();
+	try {
+			// Retrieve file content from the source location
+			const { Body } = await s3.getObject({ Bucket: sourceBucketName, Key: sourceKey }).promise();
 
+			// Upload the retrieved content to the destination location
+			await s3.upload({ Bucket: destinationBucketName, Key: destinationKey, Body }).promise();
+			return {
+					success: true,
+					message: "File moved successfully",
+					source: {
+							bucket: sourceBucketName,
+							key: sourceKey
+					},
+					destination: {
+							bucket: destinationBucketName,
+							key: destinationKey
+					}
+			};
+	} catch (error) {
+			return {
+					success: false,
+					message: "Error moving file",
+					error: error.message
+			};
+	}
+}
+async function moveFileInS3(sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
+	config.update({
+			accessKeyId: accessKeyId,
+			secretAccessKey: secretAccessKey,
+			region: region
+	});
+	const s3 = new S3();
+	try {
+			// Retrieve file content from the source location
+			const { Body } = await s3.getObject({ Bucket: sourceBucketName, Key: sourceKey }).promise();
+
+			// Upload the retrieved content to the destination location
+			await s3.upload({ Bucket: destinationBucketName, Key: destinationKey, Body }).promise();
+			// Delete the file from the source location
+			await s3.deleteObject({ Bucket: sourceBucketName, Key: sourceKey }).promise();
+			return {
+					success: true,
+					message: "File moved successfully",
+					source: {
+							bucket: sourceBucketName,
+							key: sourceKey
+					},
+					destination: {
+							bucket: destinationBucketName,
+							key: destinationKey
+					}
+			};
+	} catch (error) {
+			return {
+					success: false,
+					message: "Error moving file",
+					error: error.message
+			};
+	}
+}
 async function awsApiRequestREST(
 	this: any,
 	service: any,
@@ -86,7 +156,7 @@ async function awsApiRequestREST(
 		secret,
 		region,
 	);
-	return JSON.parse(response);
+	return response;
 }
 async function awsApiRequestRESTAllItems(
 	propertyName: string,
@@ -427,7 +497,7 @@ export class AwsS3Custom implements INodeType {
 										snakeCase(additionalFields.storageClass as string,)
 										.toUpperCase();
 								}
-								const region = responseData.LocationConstraint._ as string;
+
 								responseData = await awsApiRequestREST(
 									servicePath,
 									'PUT',
@@ -529,7 +599,7 @@ export class AwsS3Custom implements INodeType {
 									qs['fetch-owner'] = options.fetchOwner;
 								}
 								qs['list-type'] = 2;
-								const region = responseData.LocationConstraint._ as string;
+
 								if (returnAll) {
 									responseData = await awsApiRequestRESTAllItems(
 										'ListBucketResult.Contents',
@@ -574,8 +644,8 @@ export class AwsS3Custom implements INodeType {
 							}
 						}
 						if (resource === 'file') {
-							if (operation === 'copy') {
-								const sourcePath = this.getNodeParameter('sourcePath', i);
+							if (operation === 'move') {
+								const sourcePath = this.getNodeParameter('sourcePath', i) as string;
 								const destinationPath = this.getNodeParameter('destinationPath', i) as string;
 								const additionalFields = this.getNodeParameter('additionalFields', i);
 								headers['x-amz-copy-source'] = sourcePath;
@@ -651,47 +721,124 @@ export class AwsS3Custom implements INodeType {
 									headers['x-amz-metadata-directive'] =
 										additionalFields.metadataDirective.toUpperCase();
 								}
+								const sourceParts = sourcePath.split('/');
 								const destinationParts = destinationPath.split('/');
-								const bucketName = destinationParts[1];
-								const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
-								const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
-								const destination = `${basePath}/${destinationParts
-									.slice(2, destinationParts.length)
-									.join('/')}`;
-								const region = responseData.LocationConstraint._ as string;
-								responseData = await awsApiRequestREST(
-									servicePath,
-									'PUT',
-									'',
-									destination,
-									qs,
-									headers,
-									accessKeyId,
-									secretAccessKey,
-									region
-								);
-								responseData = await awsApiRequestREST(
-									servicePath,
-									'PUT',
-									destination,
-									'',
-									qs,
-									headers,
-									accessKeyId,
-									secretAccessKey,
-									region
-								);
-								const executionData = this.helpers.constructExecutionMetaData(
-									this.helpers.returnJsonArray(responseData.CopyObjectResult),
-									{ itemData: { item: i } },
-								);
-								returnData.push(...executionData);
+								const sourceKey = sourceParts.slice(2).join('/');
+								const sourceBucketName = sourceParts[1];
+								const destinationBucketName = destinationParts[1];
+								const destinationKey = destinationParts.slice(2).join('/');
+								const response = await moveFileInS3(
+										sourceBucketName,
+										sourceKey,
+										destinationBucketName,
+										destinationKey,
+										accessKeyId,
+										secretAccessKey,
+										region
+								)
+							const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), { itemData: { item: i } });
+							returnData.push(...executionData);
+							}
+							if (operation === 'copy') {
+								const sourcePath = this.getNodeParameter('sourcePath', i) as string;
+								const destinationPath = this.getNodeParameter('destinationPath', i) as string;
+								const additionalFields = this.getNodeParameter('additionalFields', i);
+								headers['x-amz-copy-source'] = sourcePath;
+								if (additionalFields.requesterPays) {
+									headers['x-amz-request-payer'] = 'requester';
+								}
+								if (additionalFields.storageClass) {
+									headers['x-amz-storage-class'] =
+										snakeCase(additionalFields.storageClass as string)
+										.toUpperCase();
+								}
+								if (additionalFields.acl) {
+									headers['x-amz-acl'] = paramCase(additionalFields.acl as string);
+								}
+								if (additionalFields.grantFullControl) {
+									headers['x-amz-grant-full-control'] = '';
+								}
+								if (additionalFields.grantRead) {
+									headers['x-amz-grant-read'] = '';
+								}
+								if (additionalFields.grantReadAcp) {
+									headers['x-amz-grant-read-acp'] = '';
+								}
+								if (additionalFields.grantWriteAcp) {
+									headers['x-amz-grant-write-acp'] = '';
+								}
+								if (additionalFields.lockLegalHold) {
+									headers['x-amz-object-lock-legal-hold'] = additionalFields.lockLegalHold
+										? 'ON'
+										: 'OFF';
+								}
+								if (additionalFields.lockMode && typeof additionalFields.lockMode === 'string') {
+									headers['x-amz-object-lock-mode'] = additionalFields.lockMode.toUpperCase();
+								}
+								if (additionalFields.lockRetainUntilDate) {
+									headers['x-amz-object-lock-retain-until-date'] =
+										additionalFields.lockRetainUntilDate;
+								}
+								if (additionalFields.serverSideEncryption) {
+									headers['x-amz-server-side-encryption'] = additionalFields.serverSideEncryption;
+								}
+								if (additionalFields.encryptionAwsKmsKeyId) {
+									headers['x-amz-server-side-encryption-aws-kms-key-id'] =
+										additionalFields.encryptionAwsKmsKeyId;
+								}
+								if (additionalFields.serverSideEncryptionContext) {
+									headers['x-amz-server-side-encryption-context'] =
+										additionalFields.serverSideEncryptionContext;
+								}
+								if (additionalFields.serversideEncryptionCustomerAlgorithm) {
+									headers['x-amz-server-side-encryption-customer-algorithm'] =
+										additionalFields.serversideEncryptionCustomerAlgorithm;
+								}
+								if (additionalFields.serversideEncryptionCustomerKey) {
+									headers['x-amz-server-side-encryption-customer-key'] =
+										additionalFields.serversideEncryptionCustomerKey;
+								}
+								if (additionalFields.serversideEncryptionCustomerKeyMD5) {
+									headers['x-amz-server-side-encryption-customer-key-MD5'] =
+										additionalFields.serversideEncryptionCustomerKeyMD5;
+								}
+								if (
+									additionalFields.taggingDirective &&
+									typeof additionalFields.taggingDirective === 'string'
+								) {
+									headers['x-amz-tagging-directive'] =
+										additionalFields.taggingDirective.toUpperCase();
+								}
+								if (
+									additionalFields.metadataDirective &&
+									typeof additionalFields.metadataDirective === 'string'
+								) {
+									headers['x-amz-metadata-directive'] =
+										additionalFields.metadataDirective.toUpperCase();
+								}
+								const sourceParts = sourcePath.split('/');
+								const destinationParts = destinationPath.split('/');
+								const sourceKey = sourceParts.slice(2).join('/');
+								const sourceBucketName = sourceParts[1];
+								const destinationBucketName = destinationParts[1];
+								const destinationKey = destinationParts.slice(2).join('/');
+								const response = await copyFileInS3(
+										sourceBucketName,
+										sourceKey,
+										destinationBucketName,
+										destinationKey,
+										accessKeyId,
+										secretAccessKey,
+										region
+								)
+							const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), { itemData: { item: i } });
+							returnData.push(...executionData);
 							}
 							if (operation === 'download') {
 								const bucketName = this.getNodeParameter('bucketName', i) as string;
 								let items: any[] = [];
-								const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
-								const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
+								// const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
+								// const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
 								const fileKey = this.getNodeParameter('fileKey', i) as string;
 								const fileName = fileKey.split('/')[fileKey.split('/').length - 1];
 								if (fileKey.substring(fileKey.length - 1) === '/') {
@@ -700,22 +847,25 @@ export class AwsS3Custom implements INodeType {
 										'Downloading a whole directory is not yet supported, please provide a file key',
 									);
 								}
-								const response = await awsApiRequestREST(
-									servicePath,
-									'GET',
-									`${basePath}/${fileKey}`,
-									'',
-									qs,
-									{ encoding: null, resolveWithFullResponse: true },
+								// const response = await awsApiRequestREST(
+								// 	servicePath,
+								// 	'GET',
+								// 	`${basePath}/${fileKey}`,
+								// 	'',
+								// 	qs,
+								// 	{ encoding: null, resolveWithFullResponse: true },
+								// 	accessKeyId,
+								// 	secretAccessKey,
+								// 	region as string,
+								// );
+								// Retrieve file content and metadata from the specified location
+								config.update({
 									accessKeyId,
 									secretAccessKey,
-									region as string,
-								);
-								let mimeType: string | undefined;
-								if (response.headers['content-type']) {
-									mimeType = response.headers['content-type'];
-								}
-
+									region
+								});
+								const s3 = new S3();
+								const response = await s3.getObject({ Bucket: bucketName, Key: fileKey }).promise();
 								const newItem: INodeExecutionData = {
 									json: items[i].json,
 									binary: {},
@@ -724,17 +874,13 @@ export class AwsS3Custom implements INodeType {
 								if (items[i].binary !== undefined && newItem.binary) {
 									Object.assign(newItem.binary, items[i].binary);
 								}
-
 								items[i] = newItem;
-
 								const dataPropertyNameDownload = this.getNodeParameter('binaryPropertyName', i);
-
-								const data = Buffer.from(response.body as string, 'utf8');
-
+								const data = Buffer.from(response.Body as string, 'utf8');
 								items[i].binary![dataPropertyNameDownload] = await this.helpers.prepareBinaryData(
 									data as unknown as Buffer,
 									fileName,
-									mimeType,
+									response.ContentType,
 								);
 							}
 							if (operation === 'delete') {
@@ -746,7 +892,7 @@ export class AwsS3Custom implements INodeType {
 								if (options.versionId) {
 									qs.versionId = options.versionId;
 								}
-								const region = responseData.LocationConstraint._ as string;
+
 								responseData = await awsApiRequestREST(
 									servicePath,
 									'DELETE',
@@ -778,7 +924,7 @@ export class AwsS3Custom implements INodeType {
 								}
 								qs.delimiter = '/';
 								qs['list-type'] = 2;
-								const region = responseData.LocationConstraint._ as string;
+
 								if (returnAll) {
 									responseData = await awsApiRequestRESTAllItems(
 										'ListBucketResult.Contents',
@@ -905,7 +1051,7 @@ export class AwsS3Custom implements INodeType {
 									});
 									multipartHeaders['x-amz-tagging'] = tags.join('&');
 								}
-								const region = responseData.LocationConstraint._ as string;
+
 								if (isBinaryData) {
 									const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i);
 									const binaryPropertyData = this.helpers.assertBinaryData(i, binaryPropertyName);
