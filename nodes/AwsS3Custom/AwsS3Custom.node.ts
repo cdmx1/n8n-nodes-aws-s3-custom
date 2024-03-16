@@ -698,16 +698,16 @@ export class AwsS3Custom implements INodeType {
 				if (resource === 'folder') {
 					if (operation === 'create') {
 						const bucketName = this.getNodeParameter('bucketName', i) as string;
-						const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
+						// const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
 						const folderName = this.getNodeParameter('folderName', i) as string;
 						const additionalFields = this.getNodeParameter('additionalFields', i);
-						let path = `${basePath}/${folderName}/`;
-						if (additionalFields.requesterPays) {
-							headers['x-amz-request-payer'] = 'requester';
-						}
-						if (additionalFields.parentFolderKey) {
-							path = `${basePath}/${additionalFields.parentFolderKey}/${folderName}/`;
-						}
+						// let path = `${basePath}/${folderName}/`;
+						// if (additionalFields.requesterPays) {
+						// 	headers['x-amz-request-payer'] = 'requester';
+						// }
+						// if (additionalFields.parentFolderKey) {
+						// 	path = `${basePath}/${additionalFields.parentFolderKey}/${folderName}/`;
+						// }
 						if (additionalFields.storageClass) {
 							headers['x-amz-storage-class'] =
 								snakeCase(additionalFields.storageClass as string,)
