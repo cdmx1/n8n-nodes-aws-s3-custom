@@ -133,35 +133,6 @@ export const folderFields: INodeProperties[] = [
 		],
 	},
 	/* -------------------------------------------------------------------------- */
-	/*                                folder:delete                               */
-	/* -------------------------------------------------------------------------- */
-	{
-		displayName: 'Bucket Name',
-		name: 'bucketName',
-		type: 'string',
-		required: true,
-		default: '',
-		displayOptions: {
-			show: {
-				resource: ['folder'],
-				operation: ['delete'],
-			},
-		},
-	},
-	{
-		displayName: 'Folder Key',
-		name: 'folderKey',
-		type: 'string',
-		required: true,
-		default: '',
-		displayOptions: {
-			show: {
-				resource: ['folder'],
-				operation: ['delete'],
-			},
-		},
-	},
-	/* -------------------------------------------------------------------------- */
 	/*                                 folder:getAll                              */
 	/* -------------------------------------------------------------------------- */
 	{
@@ -219,22 +190,6 @@ export const folderFields: INodeProperties[] = [
 				operation: ['getAll'],
 			},
 		},
-		options: [
-			{
-				displayName: 'Fetch Owner',
-				name: 'fetchOwner',
-				type: 'boolean',
-				default: false,
-				// eslint-disable-next-line n8n-nodes-base/node-param-description-boolean-without-whether
-				description:
-					'The owner field is not present in listV2 by default, if you want to return owner field with each key in the result then set the fetch owner field to true',
-			},
-			{
-				displayName: 'Folder Key',
-				name: 'folderKey',
-				type: 'string',
-				default: '',
-			},
-		],
+		options: [],
 	},
 ];
