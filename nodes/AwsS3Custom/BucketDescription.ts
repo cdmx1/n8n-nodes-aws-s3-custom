@@ -23,19 +23,7 @@ export const bucketOperations: INodeProperties[] = [
 				value: 'delete',
 				description: 'Delete a bucket',
 				action: 'Delete a bucket',
-			},
-			{
-				name: 'Get Many',
-				value: 'getAll',
-				description: 'Get many buckets',
-				action: 'Get many buckets',
-			},
-			{
-				name: 'Search',
-				value: 'search',
-				description: 'Search within a bucket',
-				action: 'Search a bucket',
-			},
+			}
 		],
 		default: 'create',
 	},
@@ -150,38 +138,5 @@ export const bucketFields: INodeProperties[] = [
 					'Region you want to create the bucket in, by default the buckets are created on the region defined on the credentials',
 			},
 		],
-	},
-	/* -------------------------------------------------------------------------- */
-	/*                                 bucket:getAll                              */
-	/* -------------------------------------------------------------------------- */
-	{
-		displayName: 'Return All',
-		name: 'returnAll',
-		type: 'boolean',
-		displayOptions: {
-			show: {
-				operation: ['getAll'],
-				resource: ['bucket'],
-			},
-		},
-		default: false,
-		description: 'Whether to return all results or only up to a given limit',
-	},
-	{
-		displayName: 'Limit',
-		name: 'limit',
-		type: 'number',
-		displayOptions: {
-			show: {
-				operation: ['getAll'],
-				resource: ['bucket'],
-				returnAll: [false],
-			},
-		},
-		typeOptions: {
-			minValue: 1
-		},
-		default: 50,
-		description: 'Max number of results to return',
 	}
 ];

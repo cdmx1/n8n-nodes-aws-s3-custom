@@ -428,14 +428,14 @@ export async function createS3Bucket(context: any, bucketName: string, accessKey
 			);
 	}
 }
-export async function uploadFileToS3(
+export async function uploadStreamToS3(
 	context: any,
 	bucketName: string,
-	stream: Readable,
-	key: string,
 	accessKeyId: any,
 	secretAccessKey: any,
 	region: string,
+	data: Buffer | Readable,
+	key: string,
 	neededHeaders: { [key: string]: string }
 ) {
 	const client = new S3Client({
@@ -458,22 +458,40 @@ export async function uploadFileToS3(
 			// Upload parts
 			let partNumber = 1;
 			const parts = [];
-			for await (const chunk of stream) {
-					const chunkBuffer = chunk instanceof Buffer ? chunk : Buffer.from(chunk);
-					const contentMD5 = createHash('md5').update(chunkBuffer).digest('base64');
+			if (data instanceof Buffer) {
+					// If data is a Buffer, upload it directly
+					const contentMD5 = createHash('md5').update(data).digest('base64');
 					const uploadPartResult = await client.send(new UploadPartCommand({
 							Bucket: bucketName,
 							Key: key,
 							UploadId: uploadId,
 							PartNumber: partNumber,
-							Body: chunkBuffer,
+							Body: data,
 							ContentMD5: contentMD5,
 					}));
 					parts.push({
 							PartNumber: partNumber,
 							ETag: uploadPartResult.ETag,
 					});
-					partNumber++;
+			} else {
+					// If data is a Readable stream, upload it in chunks
+					for await (const chunk of data) {
+							const chunkBuffer = chunk instanceof Buffer ? chunk : Buffer.from(chunk);
+							const contentMD5 = createHash('md5').update(chunkBuffer).digest('base64');
+							const uploadPartResult = await client.send(new UploadPartCommand({
+									Bucket: bucketName,
+									Key: key,
+									UploadId: uploadId,
+									PartNumber: partNumber,
+									Body: chunkBuffer,
+									ContentMD5: contentMD5,
+							}));
+							parts.push({
+									PartNumber: partNumber,
+									ETag: uploadPartResult.ETag,
+							});
+							partNumber++;
+					}
 			}
 
 			// Complete multipart upload

@@ -5,7 +5,7 @@ import {
 	IExecuteFunctions,
 	IDataObject,
 } from 'n8n-workflow';
-import { Readable } from 'stream';
+// import { Readable } from 'stream';
 import { paramCase, snakeCase } from 'change-case';
 import { NodeOperationError } from 'n8n-workflow';
 import { bucketFields, bucketOperations } from './BucketDescription';
@@ -18,12 +18,11 @@ import {
 	awsCreateFolder,
 	awsDeleteFolder,
 	deleteFileInS3,
-	awsGetAll,
 	createS3Bucket,
 	regions,
-	uploadFileToS3,
+	uploadStreamToS3,
 } from './GenericFunctions';
-// const UPLOAD_CHUNK_SIZE = 5120 * 1024;
+const UPLOAD_CHUNK_SIZE = 5120 * 1024;
 // import get from 'lodash/get';
 export class AwsS3Custom implements INodeType {
 	description: INodeTypeDescription = {
@@ -203,34 +202,6 @@ export class AwsS3Custom implements INodeType {
 							{ itemData: { item: i } },
 						);
 						returnData.push(...executionData);
-					}
-					if (operation === 'getAll') {
-						const bucketName = this.getNodeParameter('bucketName', i) as string;
-						const returnAll = this.getNodeParameter('returnAll', 0);
-						const limit = this.getNodeParameter('limit', 0);
-						const params = { returnAll: returnAll, limit: limit };
-						const options = this.getNodeParameter('options', 0);
-						responseData = await awsGetAll(
-							this,
-							bucketName,
-							accessKeyId,
-							secretAccessKey,
-							region,
-							params,
-						);
-						if (Array.isArray(responseData)) {
-							responseData = responseData.filter(
-								(e) => e?.Key && e.Key.endsWith('/') && e.Size === 0 && e.Key !== options.folderKey,
-							);
-							const executionData = responseData.map((item) => {
-								return this.helpers.constructExecutionMetaData(
-									this.helpers.returnJsonArray(responseData as any),
-									{ itemData: { item: i } },
-								);
-							});
-
-							returnData.push(...(executionData as any));
-						}
 					}
 				}
 				if (resource === 'file') {
@@ -483,7 +454,7 @@ export class AwsS3Custom implements INodeType {
 					if (operation === 'upload') {
 						const bucketName = this.getNodeParameter('bucketName', i) as string;
 						const fileName = this.getNodeParameter('fileName', i) as string;
-						// const isBinaryData = this.getNodeParameter('binaryData', i);
+						const isBinaryData = this.getNodeParameter('binaryData', i);
 						const additionalFields = this.getNodeParameter('additionalFields', i);
 						const tagsValues = (this.getNodeParameter('tagsUi', i) as { tagsValues?: any })
 							?.tagsValues;
@@ -555,17 +526,48 @@ export class AwsS3Custom implements INodeType {
 							multipartHeaders['x-amz-tagging'] = tags.join('&');
 						}
 						try {
-							const stream = new Readable();
-							await uploadFileToS3(
-								this,
-								bucketName,
-								stream,
-								fileName,
-								accessKeyId,
-								secretAccessKey,
-								region as string,
-								multipartHeaders as any,
-							);
+							if (isBinaryData) {
+								const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i);
+								const binaryPropertyData = this.helpers.assertBinaryData(i, binaryPropertyName);
+								let uploadData;
+								const multipartHeaders = {} as any;
+								multipartHeaders['Content-Type'] = binaryPropertyData.mimeType;
+
+								if (binaryPropertyData.id) {
+										uploadData = await this.helpers.getBinaryStream(binaryPropertyData.id, UPLOAD_CHUNK_SIZE);
+								} else {
+										const binaryDataBuffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
+										uploadData = binaryDataBuffer;
+								}
+
+								// Call the upload function with binary data
+								await uploadStreamToS3(
+										this,
+										bucketName,
+										accessKeyId,
+										secretAccessKey,
+										region,
+										uploadData,
+										fileName,
+										multipartHeaders
+								);
+						} else {
+								const fileContent = this.getNodeParameter('fileContent', i) as any;
+								const body = Buffer.from(fileContent, 'utf8');
+								const multipartHeaders = {}; // Reset headers for non-binary data
+
+								// Call the upload function with non-binary data
+								await uploadStreamToS3(
+										this,
+										bucketName,
+										accessKeyId,
+										secretAccessKey,
+										region,
+										body,
+										fileName,
+										multipartHeaders
+								);
+						}
 						} catch (error) {
 							throw new NodeOperationError(this.getNode(), error);
 						}
