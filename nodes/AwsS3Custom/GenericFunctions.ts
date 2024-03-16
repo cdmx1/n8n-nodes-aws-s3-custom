@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutObjectCommand,DeleteObjectsCommand, ListObjectsCommand, ListObjectsV2Command, CreateBucketCommand, BucketCannedACL, CompleteMultipartUploadCommand, UploadPartCommand, CreateMultipartUploadCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutObjectCommand,DeleteObjectsCommand, ListObjectsCommand, CreateBucketCommand, BucketCannedACL, CompleteMultipartUploadCommand, UploadPartCommand, CreateMultipartUploadCommand } from "@aws-sdk/client-s3";
 import type { Readable } from 'stream';
 import { createHash } from 'crypto';
 import { NodeOperationError } from 'n8n-workflow';
@@ -259,45 +259,6 @@ export async function awsDeleteFolder(context: any, bucketName: string, folderNa
 			success: true
 	};
 }
-export async function awsGetAll(context: any, bucketName: string, accessKeyId: any, secretAccessKey: any, region: string, options: { returnAll?: boolean, limit?: number } = {}) {
-	const { returnAll = false, limit = 50 } = options;
-
-	const client = new S3Client({
-			credentials: {
-					accessKeyId,
-					secretAccessKey,
-			},
-			region,
-	});
-
-	const allItems = [];
-
-	let continuationToken: string | undefined = undefined;
-	let fetchedItems = 0;
-
-	do {
-			try {
-					const listObjectsCommand: ListObjectsV2Command = new ListObjectsV2Command({
-							Bucket: bucketName,
-							ContinuationToken: continuationToken ?? undefined
-					});
-
-					const { Contents, NextContinuationToken } = await client.send(listObjectsCommand);
-
-					allItems.push(...Contents as any[]);
-					fetchedItems += (Contents as any[]).length;
-
-					continuationToken = NextContinuationToken ?? undefined;
-			} catch (error) {
-					throw new NodeOperationError(
-							context.getNode(),
-							error
-					);
-			}
-	} while ((returnAll || fetchedItems < limit) && continuationToken);
-
-	return allItems;
-}
 export async function copyFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
 	const client = new S3Client({
 		credentials: {
@@ -501,7 +462,6 @@ export async function uploadStreamToS3(
 					UploadId: uploadId,
 					MultipartUpload: { Parts: parts },
 			}));
-
 			return completeResult;
 	} catch (error) {
 			throw new NodeOperationError(

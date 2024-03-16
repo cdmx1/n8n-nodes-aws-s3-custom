@@ -539,7 +539,6 @@ export class AwsS3Custom implements INodeType {
 										const binaryDataBuffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
 										uploadData = binaryDataBuffer;
 								}
-
 								// Call the upload function with binary data
 								await uploadStreamToS3(
 										this,
@@ -551,6 +550,11 @@ export class AwsS3Custom implements INodeType {
 										fileName,
 										multipartHeaders
 								);
+								const executionData = this.helpers.constructExecutionMetaData(
+									this.helpers.returnJsonArray({success: true}),
+									{ itemData: { item: i } },
+								);
+								returnData.push(...executionData);
 						} else {
 								const fileContent = this.getNodeParameter('fileContent', i) as any;
 								const body = Buffer.from(fileContent, 'utf8');
@@ -567,6 +571,11 @@ export class AwsS3Custom implements INodeType {
 										fileName,
 										multipartHeaders
 								);
+								const executionData = this.helpers.constructExecutionMetaData(
+									this.helpers.returnJsonArray({success: true}),
+									{ itemData: { item: i } },
+								);
+								returnData.push(...executionData);
 						}
 						} catch (error) {
 							throw new NodeOperationError(this.getNode(), error);

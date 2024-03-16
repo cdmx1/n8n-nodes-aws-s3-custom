@@ -31,12 +31,6 @@ export const fileOperations: INodeProperties[] = [
 				action: 'Download a file',
 			},
 			{
-				name: 'Get Many',
-				value: 'getAll',
-				description: 'Get many files',
-				action: 'Get many files',
-			},
-			{
 				name: 'Move',
 				value: 'move',
 				description: 'Move a file',
