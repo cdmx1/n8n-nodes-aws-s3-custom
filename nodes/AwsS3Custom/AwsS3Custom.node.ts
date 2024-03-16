@@ -1,6 +1,6 @@
 import { INodeExecutionData, INodeType, INodeTypeDescription, IExecuteFunctions, IHttpRequestMethods, IDataObject } from 'n8n-workflow';
 import get from 'lodash/get';
-import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutObjectCommand,DeleteObjectsCommand, ListObjectsCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { parseString, Builder } from 'xml2js';
 import { createHash } from 'crypto';
 import { sign } from 'aws4';
@@ -12,8 +12,7 @@ import { folderFields, folderOperations } from './FolderDescription';
 import { fileFields, fileOperations } from './FileDescription';
 const axios = require('axios');
 const UPLOAD_CHUNK_SIZE = 5120 * 1024;
-
-async function awsGetFile(bucketName: string, key: string, accessKeyId: any, secretAccessKey: any, region: string) {
+async function awsGetFile(context: any, bucketName: string, key: string, accessKeyId: any, secretAccessKey: any, region: string) {
 	const client = new S3Client({
 		credentials: {
 			accessKeyId,
@@ -32,13 +31,170 @@ async function awsGetFile(bucketName: string, key: string, accessKeyId: any, sec
 		for await (const chunk of response.Body as any) {
 			chunks.push(chunk);
 		}
-		return Buffer.concat(chunks);
+		const fileContent = Buffer.concat(chunks);
+		return {
+            fileContent,
+            metadata: {
+                ContentType: response.ContentType
+            }
+        };
 
 	} catch (error) {
-		return error;
+			throw new NodeOperationError(
+				context.getNode(),
+				error,
+			);
 	}
 }
+async function awsCreateFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string) {
+	const client = new S3Client({
+		credentials: {
+			accessKeyId,
+			secretAccessKey,
+		},
+		region,
+	});
+	const folderKey = `${bucketName}/${folderName}/`;
 
+	try {
+			// Check if the folder already exists
+			const headCommand = new HeadObjectCommand({
+					Bucket: bucketName,
+					Key: folderKey
+			});
+			await client.send(headCommand);
+			let error_msg = `Folder '${folderName}' already exists.`;
+				throw new NodeOperationError(
+					context.getNode(),
+					error_msg,
+				);
+	} catch (error) {
+			// If the folder doesn't exist, proceed to create it
+			if (error.name !== 'NotFound') {
+				throw new NodeOperationError(
+					context.getNode(),
+					error,
+				);
+			}
+	}
+	// Create an empty file to mimic the folder
+	const putCommand = new PutObjectCommand({
+			Bucket: bucketName,
+			Key: folderKey,
+			Body: '',
+	});
+
+	await client.send(putCommand);
+	return {
+		succees: true
+	}
+}
+async function awsDeleteFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string) {
+	const client = new S3Client({
+			credentials: {
+					accessKeyId,
+					secretAccessKey,
+			},
+			region,
+	});
+	const folderKey = `${folderName}/`;
+
+	try {
+			// Check if the folder exists before attempting to delete
+			const headCommand = new HeadObjectCommand({
+					Bucket: bucketName,
+					Key: folderKey
+			});
+			await client.send(headCommand);
+	} catch (error) {
+			// If the folder doesn't exist, throw an error
+			if (error.name === 'NotFound') {
+					throw new NodeOperationError(
+							context.getNode(),
+							`Folder '${folderName}' does not exist.`
+					);
+			} else {
+					// If any other error occurs, re-throw it
+					throw new NodeOperationError(
+							context.getNode(),
+							error
+					);
+			}
+	}
+
+	// List objects within the folder to delete them
+	const listObjectsCommand = new ListObjectsCommand({
+			Bucket: bucketName,
+			Prefix: folderKey
+	});
+	const { Contents } = await client.send(listObjectsCommand) as any;
+
+	// Delete each object within the folder
+	const deleteCommands = Contents.map((obj: { Key: any; }) => ({
+			Bucket: bucketName,
+			Key: obj.Key
+	}));
+
+	if (deleteCommands.length > 0) {
+			const deleteObjectsCommand = new DeleteObjectsCommand({
+					Bucket: bucketName,
+					Delete: {
+							Objects: deleteCommands
+					}
+			});
+			await client.send(deleteObjectsCommand);
+	}
+
+	// Delete the folder itself
+	const deleteFolderCommand = new DeleteObjectCommand({
+			Bucket: bucketName,
+			Key: folderKey
+	});
+	await client.send(deleteFolderCommand);
+
+	return {
+			success: true
+	};
+}
+async function awsGetAll(context: any, bucketName: string, accessKeyId: any, secretAccessKey: any, region: string, options: { returnAll?: boolean, limit?: number } = {}) {
+	const { returnAll = false, limit = 50 } = options;
+
+	const client = new S3Client({
+			credentials: {
+					accessKeyId,
+					secretAccessKey,
+			},
+			region,
+	});
+
+	const allItems = [];
+
+	let continuationToken: string | undefined = undefined;
+	let fetchedItems = 0;
+
+	do {
+			try {
+					const listObjectsCommand: ListObjectsV2Command = new ListObjectsV2Command({
+							Bucket: bucketName,
+							ContinuationToken: continuationToken ?? undefined
+					});
+
+					const { Contents, NextContinuationToken } = await client.send(listObjectsCommand);
+
+					allItems.push(...Contents as any[]);
+					fetchedItems += (Contents as any[]).length;
+
+					continuationToken = NextContinuationToken ?? undefined;
+			} catch (error) {
+					throw new NodeOperationError(
+							context.getNode(),
+							error
+					);
+			}
+	} while ((returnAll || fetchedItems < limit) && continuationToken);
+
+	return allItems;
+}
 async function awsApiRequest(
 	service: string,
 	method: IHttpRequestMethods,
@@ -91,7 +247,7 @@ async function awsApiRequest(
 		return response;
 	}
 }
-async function copyFileInS3(sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
+async function copyFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
 	const client = new S3Client({
 		credentials: {
 			accessKeyId,
@@ -120,14 +276,13 @@ async function copyFileInS3(sourceBucketName: any, sourceKey: any, destinationBu
 			}
 		};
 	} catch (error) {
-		return {
-			success: false,
-			message: "Error moving file",
-			error: error.message
-		};
+			throw new NodeOperationError(
+				context.getNode(),
+				error,
+			)
 	}
 }
-async function moveFileInS3(sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
+async function moveFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
 	try {
 		const client = new S3Client({
 			credentials: {
@@ -160,11 +315,39 @@ async function moveFileInS3(sourceBucketName: any, sourceKey: any, destinationBu
 			}
 		};
 	} catch (error) {
-		return {
-			success: false,
-			message: "Error moving file",
-			error: error.message
-		};
+		throw new NodeOperationError(
+			context.getNode(),
+			error,
+		)
+	}
+}
+async function deleteFileInS3(context: any, bucketName: any, key: any, accessKeyId: any, secretAccessKey: any, region: any) {
+	try {
+		const client = new S3Client({
+			credentials: {
+				accessKeyId,
+				secretAccessKey,
+			},
+			region,
+		});
+		const deleteCommand = new DeleteObjectCommand({
+			Bucket: bucketName,
+			Key: key,
+		});
+		await client.send(deleteCommand);
+		return [{
+			success: true,
+			message: "File deleted successfully",
+			details: {
+				bucket: bucketName,
+				key: key
+			}
+		}];
+	} catch (error) {
+		throw new NodeOperationError(
+			context.getNode(),
+			error,
+		)
 	}
 }
 async function awsApiRequestREST(
@@ -441,7 +624,7 @@ export class AwsS3Custom implements INodeType {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
 		// const qs: IDataObject = {};
-		let responseData;
+		let responseData: any[] | IDataObject | null | undefined;
 		const resource = this.getNodeParameter('resource', 0);
 		const operation = this.getNodeParameter('operation', 0);
 		const region = this.getNodeParameter('region', 0) as string;
@@ -515,9 +698,8 @@ export class AwsS3Custom implements INodeType {
 				if (resource === 'folder') {
 					if (operation === 'create') {
 						const bucketName = this.getNodeParameter('bucketName', i) as string;
-						const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
 						const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
-						const folderName = this.getNodeParameter('folderName', i);
+						const folderName = this.getNodeParameter('folderName', i) as string;
 						const additionalFields = this.getNodeParameter('additionalFields', i);
 						let path = `${basePath}/${folderName}/`;
 						if (additionalFields.requesterPays) {
@@ -532,88 +714,24 @@ export class AwsS3Custom implements INodeType {
 									.toUpperCase();
 						}
 
-						responseData = await awsApiRequestREST(
-							servicePath,
-							'PUT',
-							path,
-							'',
-							qs,
-							headers,
+						responseData = await awsCreateFolder(
+							this,
+							bucketName,
+							folderName,
 							accessKeyId,
 							secretAccessKey,
 							region
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
-							this.helpers.returnJsonArray({ success: true }),
+							this.helpers.returnJsonArray(responseData),
 							{ itemData: { item: i } },
 						);
 						returnData.push(...executionData);
 					}
 					if (operation === 'delete') {
 						const bucketName = this.getNodeParameter('bucketName', i) as string;
-						const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
-						const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
-						const folderKey = this.getNodeParameter('folderKey', i);
-						const region: string = responseData.LocationConstraint._;
-						responseData = await awsApiRequestRESTAllItems(
-							'ListBucketResult.Contents',
-							servicePath,
-							'GET',
-							basePath,
-							'',
-							{ 'list-type': 2, prefix: folderKey },
-							{},
-							accessKeyId,
-							secretAccessKey,
-							region as string,
-						);
-						if (responseData.length === 0) {
-							responseData = await awsApiRequestREST(
-								servicePath,
-								'DELETE',
-								`${basePath}/${folderKey}`,
-								'',
-								qs,
-								{},
-								accessKeyId,
-								secretAccessKey,
-								region as string,
-							);
-							responseData = { deleted: [{ Key: folderKey }] };
-						} else {
-							const body = {
-								Delete: {
-									$: {
-										xmlns: 'http://s3.amazonaws.com/doc/2006-03-01/',
-									},
-									Object: [],
-								},
-							};
-							for (const childObject of responseData) {
-								//@ts-ignore
-								(body.Delete.Object as IDataObject[]).push({
-									Key: childObject.Key as string,
-								});
-							}
-							const builder = new Builder();
-							const data = builder.buildObject(body);
-							headers['Content-MD5'] = createHash('md5')
-								.update(data)
-								.digest('base64');
-							headers['Content-Type'] = 'application/xml';
-							responseData = await awsApiRequestREST(
-								servicePath,
-								'POST',
-								`${basePath}/`,
-								data,
-								{ delete: '' },
-								headers,
-								accessKeyId,
-								secretAccessKey,
-								region as string,
-							);
-							responseData = { deleted: responseData.DeleteResult.Deleted };
-						}
+						const folderKey = this.getNodeParameter('folderKey', i) as string;
+						responseData = await awsDeleteFolder(this, bucketName, folderKey, accessKeyId, secretAccessKey, region)
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(responseData),
 							{ itemData: { item: i } },
@@ -622,59 +740,27 @@ export class AwsS3Custom implements INodeType {
 					}
 					if (operation === 'getAll') {
 						const bucketName = this.getNodeParameter('bucketName', i) as string;
-						const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
-						const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
 						const returnAll = this.getNodeParameter('returnAll', 0);
-						const options = this.getNodeParameter('options', 0);
-						if (options.folderKey) {
-							qs.prefix = options.folderKey;
-						}
-						if (options.fetchOwner) {
-							qs['fetch-owner'] = options.fetchOwner;
-						}
-						qs['list-type'] = 2;
-
-						if (returnAll) {
-							responseData = await awsApiRequestRESTAllItems(
-								'ListBucketResult.Contents',
-								servicePath,
-								'GET',
-								basePath,
-								'',
-								qs,
-								{},
-								accessKeyId,
-								secretAccessKey,
-								region as string,
-							);
-						} else {
-							qs.limit = this.getNodeParameter('limit', 0);
-							responseData = await awsApiRequestRESTAllItems(
-								'ListBucketResult.Contents',
-								servicePath,
-								'GET',
-								basePath,
-								'',
-								qs,
-								{},
-								accessKeyId,
-								secretAccessKey,
-								region as string,
-							);
-						}
-						if (Array.isArray(responseData)) {
+						const limit = this.getNodeParameter('limit', 0)
+            const params = { returnAll: returnAll, limit: limit}
+						const options = this.getNodeParameter('options', 0)
+						responseData = await awsGetAll(this, bucketName, accessKeyId, secretAccessKey, region, params);
+					if (Array.isArray(responseData)) {
 							responseData = responseData.filter(
-								(e) => e.Key.endsWith('/') && e.Size === '0' && e.Key !== options.folderKey,
+									e => e?.Key && e.Key.endsWith('/') && e.Size === 0 && e.Key !== options.folderKey
 							);
-							if (qs.limit) {
-								responseData = responseData.splice(0, qs.limit);
+							if (qs.limit && responseData.length > qs.limit) {
+									responseData = responseData.slice(0, qs.limit);
 							}
-							const executionData = this.helpers.constructExecutionMetaData(
-								this.helpers.returnJsonArray(responseData),
-								{ itemData: { item: i } },
-							);
-							returnData.push(...executionData);
-						}
+							const executionData = responseData.map(item => {
+									return this.helpers.constructExecutionMetaData(
+											this.helpers.returnJsonArray(responseData as any),
+											{ itemData: { item: i } }
+									);
+							});
+
+							returnData.push(...executionData as any);
+					}
 					}
 				}
 				if (resource === 'file') {
@@ -762,6 +848,7 @@ export class AwsS3Custom implements INodeType {
 						const destinationBucketName = destinationParts[1];
 						const destinationKey = destinationParts.slice(2).join('/');
 						const response = await moveFileInS3(
+							this,
 							sourceBucketName,
 							sourceKey,
 							destinationBucketName,
@@ -857,6 +944,7 @@ export class AwsS3Custom implements INodeType {
 						const destinationBucketName = destinationParts[1];
 						const destinationKey = destinationParts.slice(2).join('/');
 						const response = await copyFileInS3(
+							this,
 							sourceBucketName,
 							sourceKey,
 							destinationBucketName,
@@ -878,7 +966,7 @@ export class AwsS3Custom implements INodeType {
 								'Downloading a whole directory is not yet supported, please provide a file key',
 							);
 						}
-						const response = await awsGetFile(bucketName, fileKey, accessKeyId, secretAccessKey, region);
+						const response = await awsGetFile(this, bucketName, fileKey, accessKeyId, secretAccessKey, region);
 						const newItem: INodeExecutionData = {
 							json: items[i].json,
 							binary: {},
@@ -889,36 +977,23 @@ export class AwsS3Custom implements INodeType {
 						}
 						items[i] = newItem;
 						const dataPropertyNameDownload = this.getNodeParameter('binaryPropertyName', i);
-						const data = Buffer.from(response as any, 'utf8');
+						const data = Buffer.from(response.fileContent as any, 'utf8');
 						items[i].binary![dataPropertyNameDownload] = await this.helpers.prepareBinaryData(
 							data as unknown as Buffer,
 							fileName,
-							response.ContentType,
+							response.metadata.ContentType,
 						);
 					}
 					if (operation === 'delete') {
 						const bucketName = this.getNodeParameter('bucketName', i) as string;
-						const servicePath = bucketName.includes('.') ? 's3' : `${bucketName}.s3`;
-						const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
 						const fileKey = this.getNodeParameter('fileKey', i);
 						const options = this.getNodeParameter('options', i);
 						if (options.versionId) {
 							qs.versionId = options.versionId;
 						}
-
-						responseData = await awsApiRequestREST(
-							servicePath,
-							'DELETE',
-							`${basePath}/${fileKey}`,
-							'',
-							qs,
-							{},
-							accessKeyId,
-							secretAccessKey,
-							region as string,
-						);
+						const responseData = await deleteFileInS3(this, bucketName, fileKey, accessKeyId, secretAccessKey, region);
 						const executionData = this.helpers.constructExecutionMetaData(
-							this.helpers.returnJsonArray({ success: true }),
+							this.helpers.returnJsonArray(responseData),
 							{ itemData: { item: i } },
 						);
 						returnData.push(...executionData);
