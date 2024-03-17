@@ -8,7 +8,6 @@ import {
 // import { Readable } from 'stream';
 import { paramCase, snakeCase } from 'change-case';
 import { NodeOperationError } from 'n8n-workflow';
-import { folderFields, folderOperations } from './FolderDescription';
 import { fileFields, fileOperations } from './FileDescription';
 import {
 	awsGetFile,
@@ -87,9 +86,6 @@ export class AwsS3Custom implements INodeType {
 				],
 				default: 'file',
 			},
-			// FOLDER
-			...folderOperations,
-			...folderFields,
 			// UPLOAD
 			...fileOperations,
 			...fileFields,
@@ -206,7 +202,6 @@ export class AwsS3Custom implements INodeType {
 						const sourcePath = this.getNodeParameter('sourcePath', i) as string;
 						const destinationPath = this.getNodeParameter('destinationPath', i) as string;
 						const additionalFields = this.getNodeParameter('additionalFields', i);
-						const options = this.getNodeParameter('options', 0);
 						headers['x-amz-copy-source'] = sourcePath;
 						if (additionalFields.requesterPays) {
 							headers['x-amz-request-payer'] = 'requester';
@@ -292,8 +287,7 @@ export class AwsS3Custom implements INodeType {
 							destinationKey,
 							accessKeyId,
 							secretAccessKey,
-							region,
-							options
+							region
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(response),
@@ -305,7 +299,6 @@ export class AwsS3Custom implements INodeType {
 						const sourcePath = this.getNodeParameter('sourcePath', i) as string;
 						const destinationPath = this.getNodeParameter('destinationPath', i) as string;
 						const additionalFields = this.getNodeParameter('additionalFields', i);
-						const options = this.getNodeParameter('options', 0);
 						headers['x-amz-copy-source'] = sourcePath;
 						if (additionalFields.requesterPays) {
 							headers['x-amz-request-payer'] = 'requester';
@@ -391,8 +384,7 @@ export class AwsS3Custom implements INodeType {
 							destinationKey,
 							accessKeyId,
 							secretAccessKey,
-							region,
-							options
+							region
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(response),

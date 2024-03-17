@@ -1,6 +1,6 @@
 {
   "name": "@cdmx/n8n-nodes-aws-s3-custom",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "S3 custom module.",
   "keywords": [
     "n8n-community-node-package"

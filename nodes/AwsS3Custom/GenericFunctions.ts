@@ -259,7 +259,7 @@ export async function awsDeleteFolder(context: any, bucketName: string, folderNa
 			success: true
 	};
 }
-export async function copyFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any, options: any) {
+export async function copyFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
 	const client = new S3Client({
 		credentials: {
 			accessKeyId,
@@ -272,12 +272,7 @@ export async function copyFileInS3(context: any, sourceBucketName: any, sourceKe
 		const copyCommand = new CopyObjectCommand({
 			CopySource: `/${sourceBucketName}/${sourceKey}`,
 			Bucket: destinationBucketName,
-			Key: destinationKey,
-			ACL: options.acl || undefined, // Apply ACL if provided
-			ServerSideEncryption: options.serverSideEncryption || undefined, // Server-side encryption algorithm
-			MetadataDirective: options.metadataDirective || undefined, // Metadata directive
-			TaggingDirective: options.taggingDirective || undefined, // Tagging directive
-			StorageClass: options.storageClass || undefined, // Storage class
+			Key: destinationKey
 		});
 		await client.send(copyCommand);
 		return {
@@ -299,7 +294,7 @@ export async function copyFileInS3(context: any, sourceBucketName: any, sourceKe
 			)
 	}
 }
-export async function moveFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any, options: any) {
+export async function moveFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
 	try {
 		const client = new S3Client({
 			credentials: {
@@ -311,12 +306,7 @@ export async function moveFileInS3(context: any, sourceBucketName: any, sourceKe
 		const copyCommand = new CopyObjectCommand({
 			CopySource: `/${sourceBucketName}/${sourceKey}`,
 			Bucket: destinationBucketName,
-			Key: destinationKey,
-			ACL: options.acl || undefined, // Apply ACL if provided
-			ServerSideEncryption: options.serverSideEncryption || undefined, // Server-side encryption algorithm
-			MetadataDirective: options.metadataDirective || undefined, // Metadata directive
-			TaggingDirective: options.taggingDirective || undefined, // Tagging directive
-			StorageClass: options.storageClass || undefined, // Storage class
+			Key: destinationKey
 		});
 		await client.send(copyCommand);
 		const deleteCommand = new DeleteObjectCommand({
@@ -423,8 +413,6 @@ export async function uploadStreamToS3(
 			const createMultiPartUpload = await client.send(new CreateMultipartUploadCommand({
 					Bucket: bucketName,
 					Key: key,
-					ACL: options.acl || undefined, // Apply ACL if provided
-					ServerSideEncryption: options.serverSideEncryption || undefined, // Server-side encryption algorithm
 					...neededHeaders,
 			}));
 			const uploadId = createMultiPartUpload.UploadId;
