@@ -72,17 +72,9 @@ export class AwsS3Custom implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Bucket',
-						value: 'bucket',
-					},
-					{
 						name: 'File',
 						value: 'file',
-					},
-					{
-						name: 'Folder',
-						value: 'folder',
-					},
+					}
 				],
 				default: 'file',
 			},
