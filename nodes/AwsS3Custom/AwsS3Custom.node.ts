@@ -8,7 +8,6 @@ import {
 // import { Readable } from 'stream';
 import { paramCase, snakeCase } from 'change-case';
 import { NodeOperationError } from 'n8n-workflow';
-import { bucketFields, bucketOperations } from './BucketDescription';
 import { folderFields, folderOperations } from './FolderDescription';
 import { fileFields, fileOperations } from './FileDescription';
 import {
@@ -88,9 +87,6 @@ export class AwsS3Custom implements INodeType {
 				],
 				default: 'file',
 			},
-			// BUCKET
-			...bucketOperations,
-			...bucketFields,
 			// FOLDER
 			...folderOperations,
 			...folderFields,
@@ -159,6 +155,7 @@ export class AwsS3Custom implements INodeType {
 						// const basePath = bucketName.includes('.') ? `/${bucketName}` : '';
 						const folderName = this.getNodeParameter('folderName', i) as string;
 						const additionalFields = this.getNodeParameter('additionalFields', i);
+						// const options = this.getNodeParameter('options', 0);
 						// let path = `${basePath}/${folderName}/`;
 						// if (additionalFields.requesterPays) {
 						// 	headers['x-amz-request-payer'] = 'requester';
@@ -209,6 +206,7 @@ export class AwsS3Custom implements INodeType {
 						const sourcePath = this.getNodeParameter('sourcePath', i) as string;
 						const destinationPath = this.getNodeParameter('destinationPath', i) as string;
 						const additionalFields = this.getNodeParameter('additionalFields', i);
+						const options = this.getNodeParameter('options', 0);
 						headers['x-amz-copy-source'] = sourcePath;
 						if (additionalFields.requesterPays) {
 							headers['x-amz-request-payer'] = 'requester';
@@ -295,6 +293,7 @@ export class AwsS3Custom implements INodeType {
 							accessKeyId,
 							secretAccessKey,
 							region,
+							options
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(response),
@@ -306,6 +305,7 @@ export class AwsS3Custom implements INodeType {
 						const sourcePath = this.getNodeParameter('sourcePath', i) as string;
 						const destinationPath = this.getNodeParameter('destinationPath', i) as string;
 						const additionalFields = this.getNodeParameter('additionalFields', i);
+						const options = this.getNodeParameter('options', 0);
 						headers['x-amz-copy-source'] = sourcePath;
 						if (additionalFields.requesterPays) {
 							headers['x-amz-request-payer'] = 'requester';
@@ -392,6 +392,7 @@ export class AwsS3Custom implements INodeType {
 							accessKeyId,
 							secretAccessKey,
 							region,
+							options
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(response),
@@ -456,6 +457,7 @@ export class AwsS3Custom implements INodeType {
 						const fileName = this.getNodeParameter('fileName', i) as string;
 						const isBinaryData = this.getNodeParameter('binaryData', i);
 						const additionalFields = this.getNodeParameter('additionalFields', i);
+						const options = this.getNodeParameter('options', 0);
 						const tagsValues = (this.getNodeParameter('tagsUi', i) as { tagsValues?: any })
 							?.tagsValues;
 						const multipartHeaders: IDataObject = {};
@@ -548,7 +550,8 @@ export class AwsS3Custom implements INodeType {
 										region,
 										uploadData,
 										fileName,
-										multipartHeaders
+										multipartHeaders,
+										options,
 								);
 								const executionData = this.helpers.constructExecutionMetaData(
 									this.helpers.returnJsonArray({success: true}),
@@ -569,7 +572,8 @@ export class AwsS3Custom implements INodeType {
 										region,
 										body,
 										fileName,
-										multipartHeaders
+										multipartHeaders,
+										options,
 								);
 								const executionData = this.helpers.constructExecutionMetaData(
 									this.helpers.returnJsonArray({success: true}),
