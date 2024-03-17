@@ -449,7 +449,6 @@ export class AwsS3Custom implements INodeType {
 						const fileName = this.getNodeParameter('fileName', i) as string;
 						const isBinaryData = this.getNodeParameter('binaryData', i);
 						const additionalFields = this.getNodeParameter('additionalFields', i);
-						const options = this.getNodeParameter('options', 0);
 						const tagsValues = (this.getNodeParameter('tagsUi', i) as { tagsValues?: any })
 							?.tagsValues;
 						const multipartHeaders: IDataObject = {};
@@ -542,8 +541,7 @@ export class AwsS3Custom implements INodeType {
 										region,
 										uploadData,
 										fileName,
-										multipartHeaders,
-										options,
+										multipartHeaders
 								);
 								const executionData = this.helpers.constructExecutionMetaData(
 									this.helpers.returnJsonArray({success: true}),
@@ -564,8 +562,7 @@ export class AwsS3Custom implements INodeType {
 										region,
 										body,
 										fileName,
-										multipartHeaders,
-										options,
+										multipartHeaders
 								);
 								const executionData = this.helpers.constructExecutionMetaData(
 									this.helpers.returnJsonArray({success: true}),

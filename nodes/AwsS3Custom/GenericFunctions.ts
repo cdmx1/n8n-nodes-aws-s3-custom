@@ -397,8 +397,7 @@ export async function uploadStreamToS3(
 	region: string,
 	data: Buffer | Readable,
 	key: string,
-	neededHeaders: { [key: string]: string },
-	options: any
+	neededHeaders: { [key: string]: string }
 ) {
 	const client = new S3Client({
 			credentials: {
