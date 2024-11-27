@@ -3,6 +3,16 @@ import type { Readable } from 'stream';
 import { createHash } from 'crypto';
 import { NodeOperationError } from 'n8n-workflow';
 
+interface Config {
+	credentials: {
+		accessKeyId: any;
+		secretAccessKey: any;
+	};
+	region: any;
+	endpoint?: string; // Declare endpoint as optional in the interface
+	forcePathStyle?: boolean;
+}
+
 export const regions = [
 	{
 		name: 'af-south-1',
@@ -115,14 +125,22 @@ export const regions = [
 		location: 'Oregon',
 	},
 ];
-export async function awsGetFile(context: any, bucketName: string, key: string, accessKeyId: any, secretAccessKey: any, region: string) {
-	const client = new S3Client({
+export async function awsGetFile(context: any, bucketName: string, key: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string) {
+	let config = {
 		credentials: {
 			accessKeyId,
 			secretAccessKey,
 		},
 		region,
-	});
+		endpoint: "",
+		forcePathStyle: false
+	};
+
+	if (endpoint !== "") {
+		config.endpoint = endpoint;
+		config.forcePathStyle = true;
+	}
+	const client = new S3Client(config);
 	try {
 		const command = new GetObjectCommand({
 			Bucket: bucketName,
@@ -149,14 +167,26 @@ export async function awsGetFile(context: any, bucketName: string, key: string, 
 			);
 	}
 }
-export async function awsCreateFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string) {
-	const client = new S3Client({
+export async function awsCreateFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string) {
+	let config: Config = {
 		credentials: {
 			accessKeyId,
 			secretAccessKey,
 		},
 		region,
-	});
+		endpoint: "", // Make endpoint optional
+		forcePathStyle: false
+	};
+
+	if (endpoint !== "") {
+		config.endpoint = endpoint;
+		config.forcePathStyle = true;
+	} else {
+		delete config["endpoint"];
+		delete config["forcePathStyle"];
+	}
+
+	const client = new S3Client(config);
 	const folderKey = `${bucketName}/${folderName}/`;
 
 	try {
@@ -192,14 +222,26 @@ export async function awsCreateFolder(context: any, bucketName: string, folderNa
 		succees: true
 	}
 }
-export async function awsDeleteFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string) {
-	const client = new S3Client({
-			credentials: {
-					accessKeyId,
-					secretAccessKey,
-			},
-			region,
-	});
+export async function awsDeleteFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string) {
+	let config: Config = {
+		credentials: {
+			accessKeyId,
+			secretAccessKey,
+		},
+		region,
+		endpoint: "", // Make endpoint optional
+		forcePathStyle: false
+	};
+
+	if (endpoint !== "") {
+		config.endpoint = endpoint;
+		config.forcePathStyle = true;
+	} else {
+		delete config["endpoint"];
+		delete config["forcePathStyle"];
+	}
+
+	const client = new S3Client(config);
 	const folderKey = `${folderName}/`;
 
 	try {
@@ -259,14 +301,25 @@ export async function awsDeleteFolder(context: any, bucketName: string, folderNa
 			success: true
 	};
 }
-export async function copyFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
-	const client = new S3Client({
+export async function copyFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string) {
+	let config: Config = {
 		credentials: {
 			accessKeyId,
 			secretAccessKey,
 		},
 		region,
-	});
+		endpoint: "", // Make endpoint optional
+		forcePathStyle: false
+	};
+
+	if (endpoint !== "") {
+		config.endpoint = endpoint;
+		config.forcePathStyle = true;
+	} else {
+		delete config["endpoint"];
+		delete config["forcePathStyle"];
+	}
+	const client = new S3Client(config);
 	try {
 
 		const copyCommand = new CopyObjectCommand({
@@ -294,15 +347,27 @@ export async function copyFileInS3(context: any, sourceBucketName: any, sourceKe
 			)
 	}
 }
-export async function moveFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any) {
+export async function moveFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string) {
 	try {
-		const client = new S3Client({
+		let config: Config = {
 			credentials: {
 				accessKeyId,
 				secretAccessKey,
 			},
 			region,
-		});
+			endpoint: "", // Make endpoint optional
+			forcePathStyle: false
+		};
+
+		if (endpoint !== "") {
+			config.endpoint = endpoint;
+			config.forcePathStyle = true;
+		} else {
+			delete config["endpoint"];
+			delete config["forcePathStyle"];
+		}
+
+		const client = new S3Client(config);
 		const copyCommand = new CopyObjectCommand({
 			CopySource: `/${sourceBucketName}/${sourceKey}`,
 			Bucket: destinationBucketName,
@@ -333,15 +398,27 @@ export async function moveFileInS3(context: any, sourceBucketName: any, sourceKe
 		)
 	}
 }
-export async function deleteFileInS3(context: any, bucketName: any, key: any, accessKeyId: any, secretAccessKey: any, region: any) {
+export async function deleteFileInS3(context: any, bucketName: any, key: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string) {
 	try {
-		const client = new S3Client({
+		let config: Config = {
 			credentials: {
 				accessKeyId,
 				secretAccessKey,
 			},
 			region,
-		});
+			endpoint: "", // Make endpoint optional
+			forcePathStyle: false
+		};
+
+		if (endpoint !== "") {
+			config.endpoint = endpoint;
+			config.forcePathStyle = true;
+		} else {
+			delete config["endpoint"];
+			delete config["forcePathStyle"];
+		}
+
+		const client = new S3Client(config);
 		const deleteCommand = new DeleteObjectCommand({
 			Bucket: bucketName,
 			Key: key,
@@ -363,16 +440,28 @@ export async function deleteFileInS3(context: any, bucketName: any, key: any, ac
 	}
 }
 
-export async function createS3Bucket(context: any, bucketName: string, accessKeyId: any, secretAccessKey: any, region: string, options: { acl?: BucketCannedACL } = {}) {
+export async function createS3Bucket(context: any, bucketName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string, options: { acl?: BucketCannedACL } = {}) {
 	const { acl = 'private' } = options;
 
-	const client = new S3Client({
-			credentials: {
-					accessKeyId,
-					secretAccessKey,
-			},
-			region,
-	});
+	let config: Config = {
+		credentials: {
+			accessKeyId,
+			secretAccessKey,
+		},
+		region,
+		endpoint: "", // Make endpoint optional
+		forcePathStyle: false
+	};
+
+	if (endpoint !== "") {
+		config.endpoint = endpoint;
+		config.forcePathStyle = true;
+	} else {
+		delete config["endpoint"];
+		delete config["forcePathStyle"];
+	}
+
+	const client = new S3Client(config);
 
 	try {
 			const createBucketCommand: CreateBucketCommand = new CreateBucketCommand({
@@ -397,15 +486,28 @@ export async function uploadStreamToS3(
 	region: string,
 	data: Buffer | Readable,
 	key: string,
-	neededHeaders: { [key: string]: string }
+	neededHeaders: { [key: string]: string },
+	endpoint: string
 ) {
-	const client = new S3Client({
-			credentials: {
-					accessKeyId,
-					secretAccessKey,
-			},
-			region,
-	});
+	let config: Config = {
+		credentials: {
+			accessKeyId,
+			secretAccessKey,
+		},
+		region,
+		endpoint: "", // Make endpoint optional
+		forcePathStyle: false
+	};
+
+	if (endpoint !== "") {
+		config.endpoint = endpoint;
+		config.forcePathStyle = true;
+	} else {
+		delete config["endpoint"];
+		delete config["forcePathStyle"];
+	}
+
+	const client = new S3Client(config);
 
 	try {
 			// Initiate multipart upload
