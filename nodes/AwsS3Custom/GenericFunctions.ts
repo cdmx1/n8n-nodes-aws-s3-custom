@@ -126,7 +126,7 @@ export const regions = [
 	},
 ];
 export async function awsGetFile(context: any, bucketName: string, key: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string) {
-	let config = {
+	let config: Config = {
 		credentials: {
 			accessKeyId,
 			secretAccessKey,
@@ -139,7 +139,11 @@ export async function awsGetFile(context: any, bucketName: string, key: string, 
 	if (endpoint !== "") {
 		config.endpoint = endpoint;
 		config.forcePathStyle = true;
+	} else {
+		delete config["endpoint"];
+		delete config["forcePathStyle"];
 	}
+
 	const client = new S3Client(config);
 	try {
 		const command = new GetObjectCommand({
