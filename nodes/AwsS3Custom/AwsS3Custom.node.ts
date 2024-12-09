@@ -107,7 +107,7 @@ export class AwsS3Custom implements INodeType {
 		const accessKeyId = this.getNodeParameter('accessKeyId', 0) as string;
 		const secretAccessKey = this.getNodeParameter('secretAccessKey', 0) as string;
 		const customEndpoint = this.getNodeParameter('customEndpoint', 0) as string;
-		const provider = this.getNodeParameter('provider', "aws") as string;
+		const provider = this.getNodeParameter('provider', 0) as string;
 		const credentials = {
 			region: region,
 			accessKeyId: accessKeyId,
