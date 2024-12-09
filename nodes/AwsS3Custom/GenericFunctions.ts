@@ -125,7 +125,7 @@ export const regions = [
 		location: 'Oregon',
 	},
 ];
-export async function awsGetFile(context: any, bucketName: string, key: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string) {
+export async function awsGetFile(context: any, bucketName: string, key: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string, provider: string) {
 	let config: Config = {
 		credentials: {
 			accessKeyId,
@@ -136,7 +136,7 @@ export async function awsGetFile(context: any, bucketName: string, key: string, 
 		forcePathStyle: false
 	};
 
-	if (endpoint !== "") {
+	if (provider === "custom" && endpoint !== "") {
 		config.endpoint = endpoint;
 		config.forcePathStyle = true;
 	} else {
@@ -171,7 +171,7 @@ export async function awsGetFile(context: any, bucketName: string, key: string, 
 			);
 	}
 }
-export async function awsCreateFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string) {
+export async function awsCreateFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string, provider: string) {
 	let config: Config = {
 		credentials: {
 			accessKeyId,
@@ -182,7 +182,7 @@ export async function awsCreateFolder(context: any, bucketName: string, folderNa
 		forcePathStyle: false
 	};
 
-	if (endpoint !== "") {
+	if (provider === "custom" && endpoint !== "") {
 		config.endpoint = endpoint;
 		config.forcePathStyle = true;
 	} else {
@@ -226,7 +226,7 @@ export async function awsCreateFolder(context: any, bucketName: string, folderNa
 		succees: true
 	}
 }
-export async function awsDeleteFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string) {
+export async function awsDeleteFolder(context: any, bucketName: string, folderName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string, provider: string) {
 	let config: Config = {
 		credentials: {
 			accessKeyId,
@@ -237,7 +237,7 @@ export async function awsDeleteFolder(context: any, bucketName: string, folderNa
 		forcePathStyle: false
 	};
 
-	if (endpoint !== "") {
+	if (provider === "custom" && endpoint !== "") {
 		config.endpoint = endpoint;
 		config.forcePathStyle = true;
 	} else {
@@ -305,7 +305,7 @@ export async function awsDeleteFolder(context: any, bucketName: string, folderNa
 			success: true
 	};
 }
-export async function copyFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string) {
+export async function copyFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string, provider: string) {
 	let config: Config = {
 		credentials: {
 			accessKeyId,
@@ -316,7 +316,7 @@ export async function copyFileInS3(context: any, sourceBucketName: any, sourceKe
 		forcePathStyle: false
 	};
 
-	if (endpoint !== "") {
+	if (provider === "custom" && endpoint !== "") {
 		config.endpoint = endpoint;
 		config.forcePathStyle = true;
 	} else {
@@ -351,7 +351,7 @@ export async function copyFileInS3(context: any, sourceBucketName: any, sourceKe
 			)
 	}
 }
-export async function moveFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string) {
+export async function moveFileInS3(context: any, sourceBucketName: any, sourceKey: any, destinationBucketName: any, destinationKey: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string, provider: string) {
 	try {
 		let config: Config = {
 			credentials: {
@@ -363,7 +363,7 @@ export async function moveFileInS3(context: any, sourceBucketName: any, sourceKe
 			forcePathStyle: false
 		};
 
-		if (endpoint !== "") {
+		if (provider === "custom" && endpoint !== "") {
 			config.endpoint = endpoint;
 			config.forcePathStyle = true;
 		} else {
@@ -402,7 +402,7 @@ export async function moveFileInS3(context: any, sourceBucketName: any, sourceKe
 		)
 	}
 }
-export async function deleteFileInS3(context: any, bucketName: any, key: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string) {
+export async function deleteFileInS3(context: any, bucketName: any, key: any, accessKeyId: any, secretAccessKey: any, region: any, endpoint: string, provider: string) {
 	try {
 		let config: Config = {
 			credentials: {
@@ -414,7 +414,7 @@ export async function deleteFileInS3(context: any, bucketName: any, key: any, ac
 			forcePathStyle: false
 		};
 
-		if (endpoint !== "") {
+		if (provider === "custom" && endpoint !== "") {
 			config.endpoint = endpoint;
 			config.forcePathStyle = true;
 		} else {
@@ -444,7 +444,7 @@ export async function deleteFileInS3(context: any, bucketName: any, key: any, ac
 	}
 }
 
-export async function createS3Bucket(context: any, bucketName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string, options: { acl?: BucketCannedACL } = {}) {
+export async function createS3Bucket(context: any, bucketName: string, accessKeyId: any, secretAccessKey: any, region: string, endpoint: string, provider: string, options: { acl?: BucketCannedACL } = {}) {
 	const { acl = 'private' } = options;
 
 	let config: Config = {
@@ -457,7 +457,7 @@ export async function createS3Bucket(context: any, bucketName: string, accessKey
 		forcePathStyle: false
 	};
 
-	if (endpoint !== "") {
+	if (provider === "custom" && endpoint !== "") {
 		config.endpoint = endpoint;
 		config.forcePathStyle = true;
 	} else {
@@ -491,7 +491,8 @@ export async function uploadStreamToS3(
 	data: Buffer | Readable,
 	key: string,
 	neededHeaders: { [key: string]: string },
-	endpoint: string
+	endpoint: string,
+	provider: string
 ) {
 	let config: Config = {
 		credentials: {
@@ -503,7 +504,7 @@ export async function uploadStreamToS3(
 		forcePathStyle: false
 	};
 
-	if (endpoint !== "") {
+	if (provider === "custom" && endpoint !== "") {
 		config.endpoint = endpoint;
 		config.forcePathStyle = true;
 	} else {

@@ -39,6 +39,13 @@ export class AwsS3Custom implements INodeType {
 		credentials: [],
 		properties: [
 			{
+				displayName: 'Provider',
+				name: 'provider',
+				type: 'string',
+				required: true,
+				default: '',
+			},
+			{
 				displayName: 'Region',
 				name: 'region',
 				type: 'options',
@@ -100,6 +107,7 @@ export class AwsS3Custom implements INodeType {
 		const accessKeyId = this.getNodeParameter('accessKeyId', 0) as string;
 		const secretAccessKey = this.getNodeParameter('secretAccessKey', 0) as string;
 		const customEndpoint = this.getNodeParameter('customEndpoint', 0) as string;
+		const provider = this.getNodeParameter('provider', "aws") as string;
 		const credentials = {
 			region: region,
 			accessKeyId: accessKeyId,
@@ -135,6 +143,7 @@ export class AwsS3Custom implements INodeType {
 							secretAccessKey,
 							region,
 							customEndpoint,
+							provider,
 							additionalFields,
 						);
 
@@ -173,6 +182,7 @@ export class AwsS3Custom implements INodeType {
 							secretAccessKey,
 							region,
 							customEndpoint,
+							provider,
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(responseData),
@@ -190,7 +200,8 @@ export class AwsS3Custom implements INodeType {
 							accessKeyId,
 							secretAccessKey,
 							region,
-							customEndpoint
+							customEndpoint,
+							provider,
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(responseData),
@@ -290,7 +301,8 @@ export class AwsS3Custom implements INodeType {
 							accessKeyId,
 							secretAccessKey,
 							region,
-							customEndpoint
+							customEndpoint,
+							provider
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(response),
@@ -388,7 +400,8 @@ export class AwsS3Custom implements INodeType {
 							accessKeyId,
 							secretAccessKey,
 							region,
-							customEndpoint
+							customEndpoint,
+							provider
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(response),
@@ -413,7 +426,8 @@ export class AwsS3Custom implements INodeType {
 							accessKeyId,
 							secretAccessKey,
 							region,
-							customEndpoint
+							customEndpoint,
+							provider
 						);
 						const newItem: INodeExecutionData = {
 							json: items[i].json,
@@ -442,7 +456,8 @@ export class AwsS3Custom implements INodeType {
 							accessKeyId,
 							secretAccessKey,
 							region,
-							customEndpoint
+							customEndpoint,
+							provider
 						);
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(responseData),
@@ -548,7 +563,8 @@ export class AwsS3Custom implements INodeType {
 										uploadData,
 										fileName,
 										multipartHeaders,
-										customEndpoint
+										customEndpoint,
+										provider
 								);
 								const executionData = this.helpers.constructExecutionMetaData(
 									this.helpers.returnJsonArray({success: true}),
@@ -570,7 +586,8 @@ export class AwsS3Custom implements INodeType {
 										body,
 										fileName,
 										multipartHeaders,
-										customEndpoint
+										customEndpoint,
+										provider
 								);
 								const executionData = this.helpers.constructExecutionMetaData(
 									this.helpers.returnJsonArray({success: true}),
