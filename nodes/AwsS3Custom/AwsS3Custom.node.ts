@@ -42,8 +42,8 @@ export class AwsS3Custom implements INodeType {
 				displayName: 'Provider',
 				name: 'provider',
 				type: 'string',
-				required: true,
-				default: '',
+				required: false,
+				default: 'aws',
 			},
 			{
 				displayName: 'Region',
@@ -76,6 +76,7 @@ export class AwsS3Custom implements INodeType {
 				displayName: 'Custom Endpoint',
 				name: 'customEndpoint',
 				type: 'string',
+				required: false,
 				default: '',
 			},
 			{
